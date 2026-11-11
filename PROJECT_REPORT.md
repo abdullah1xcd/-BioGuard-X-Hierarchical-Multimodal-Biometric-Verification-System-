@@ -1,5 +1,16 @@
-# Project report (template - fill results from reports/)
-1 Introduction & problem · 2 Objectives · 3 Architecture (see README) · 4 Dataset (DATASET_GUIDE.md) · 5 Face processing (Haar, CLAHE, HOG, LBP) · 6 Voice processing (MFCC, ZCR, RMS)
-7 Traditional ML (SVM, RF, KNN; pair-based verification) · 8 Fusion (early/score/decision) · 9 Hierarchical authentication · 10 Security Analyst Agent · 11 Automation Engine
-12 Evaluation: explain Accuracy, Precision, Recall, F1, confusion matrix, FAR, FRR, EER, ROC/AUC (FAR/FRR/EER are the biometric-specific ones because accepting an impostor and rejecting a genuine user have different costs; accuracy hides class imbalance).
-13 Results: paste `reports/all_results.csv`, `roc.png`, `confusion_matrices.png` · 14 Limitations (MODEL_CARD.md, SECURITY_AND_PRIVACY.md) · 15 Conclusion · 16 References (FaciaVox paper, scikit-learn, librosa, OpenCV).
+# Project report template — current implementation
+
+1. **Introduction and objective** — hierarchical multimodal biometric verification for coursework; traditional ML only.
+2. **Requirements and constraints** — face, voice, optional fingerprint; no deep-learning identity models.
+3. **Architecture** — Vanilla JS UI, experimental FastAPI adapter, and traditional-ML training pipeline.
+4. **Dataset** — describe consent, participants, capture sessions, matched face/voice filename stems, and split protocol. No dataset is included in this repository.
+5. **Face features** — HOG and LBP, individually and combined.
+6. **Voice features** — MFCC mean/std, zero-crossing rate, and RMS energy.
+7. **Traditional ML** — calibrated RBF SVM and Random Forest pairwise classifiers.
+8. **Verification approaches** — face-only, voice-only, early feature fusion, and face-first hierarchical fallback.
+9. **Evaluation methodology** — validation EER threshold calibration; held-out test metrics.
+10. **Metrics** — accuracy, precision, recall, F1, confusion matrix, FAR, FRR, EER, and ROC-AUC. Explain that FAR and FRR have different error costs and that accuracy alone can hide class imbalance.
+11. **Results** — populate from `reports/metrics.json` only after running the pipeline on the consented dataset. Never use CI synthetic metrics as biometric results.
+12. **Limitations** — sample-level (not session-aware) split, no trained fingerprint model, no liveness, no API-to-model integration, and no real-data results until dataset collection.
+13. **Conclusion and future work** — dataset evaluation, session-aware/independent testing, optional fingerprint integration, API/model integration, and hardware/browser testing.
+14. **References** — OpenCV HOG, MFCC literature, scikit-learn SVM/Random Forest, and the exact dataset sources/licences used.
