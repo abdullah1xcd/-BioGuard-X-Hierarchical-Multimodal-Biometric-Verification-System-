@@ -3,7 +3,7 @@ pandas
 scipy
 scikit-learn
 scikit-image
-opencv-python
+opencv-python>=4.9,<5
 matplotlib
 plotly
 joblib
