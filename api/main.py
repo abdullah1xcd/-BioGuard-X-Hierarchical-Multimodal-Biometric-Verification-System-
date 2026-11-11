@@ -8,7 +8,6 @@ a consented, representative validation dataset and reviewed by the project team.
 from __future__ import annotations
 
 import base64
-import hashlib
 import hmac
 import io
 import json
@@ -17,6 +16,7 @@ import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -64,12 +64,20 @@ def get_fernet() -> Fernet:
         raise RuntimeError("BIOGUARD_ENCRYPTION_KEY must be a valid Fernet key") from exc
 
 
-def db() -> sqlite3.Connection:
+@contextmanager
+def db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def init_db() -> None:
@@ -127,7 +135,10 @@ def parse_modalities(raw: str) -> list[str]:
         values = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise HTTPException(400, detail={"code": "INVALID_MODALITIES", "message": "Modalities must be a JSON array."}) from exc
-    if not isinstance(values, list) or not values or len(values) != len(set(values)) or any(x not in ALLOWED for x in values):
+    if (not isinstance(values, list) or not values
+            or any(not isinstance(x, str) for x in values)
+            or len(values) != len(set(values))
+            or any(x not in ALLOWED for x in values)):
         raise HTTPException(400, detail={"code": "INVALID_MODALITIES", "message": "Choose one or more supported, unique modalities."})
     return values
 
@@ -259,8 +270,12 @@ async def enroll(
         raise HTTPException(400, detail={"code": "INVALID_JSON", "message": "Profile and consent must be valid JSON."}) from exc
     if not isinstance(profile_data, dict) or not isinstance(consent_data, dict):
         raise HTTPException(400, detail={"code": "INVALID_PROFILE", "message": "Profile and consent must be JSON objects."})
-    name = str(profile_data.get("full_name", "")).strip()
-    identity_ref = str(profile_data.get("identity_ref", "")).strip()
+    raw_name = profile_data.get("full_name")
+    raw_ref = profile_data.get("identity_ref")
+    if not isinstance(raw_name, str) or not isinstance(raw_ref, str):
+        raise HTTPException(422, detail={"code": "INVALID_PROFILE", "message": "Full name and identity reference must be strings."})
+    name = raw_name.strip()
+    identity_ref = raw_ref.strip()
     if not 2 <= len(name) <= 100 or not IDENTITY_RE.fullmatch(identity_ref):
         raise HTTPException(422, detail={"code": "INVALID_PROFILE", "message": "Provide a valid full name and identity reference."})
     if consent_data.get("granted") is not True or not str(consent_data.get("policy_version", "")).strip():
@@ -286,8 +301,12 @@ async def enroll(
                 "INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)",
                 (identity_ref, name, profile_data.get("email"), utc_now(), str(consent_data["policy_version"])),
             )
-        for kind, vector in extracted.items():
-            store_template(identity_ref, kind, vector)
+            for kind, vector in extracted.items():
+                encrypted = get_fernet().encrypt(vector_bytes(vector))
+                conn.execute(
+                    "INSERT INTO templates VALUES (?, ?, ?, ?, ?)",
+                    (identity_ref, kind, encrypted, "baseline-handcrafted-v1", utc_now()),
+                )
     except sqlite3.IntegrityError as exc:
         raise HTTPException(409, detail={"code": "IDENTITY_EXISTS", "message": "That identity reference is already registered."}) from exc
     event_id = audit(actor, "identity_enrollment", identity_ref, selected, "enrolled", request_id)
@@ -340,6 +359,8 @@ async def verify(
             del raw
     except (ValueError, sf.LibsndfileError, cv2.error, InvalidToken) as exc:
         raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
+    except RuntimeError as exc:
+        raise HTTPException(503, detail={"code": "ENCRYPTION_NOT_CONFIGURED", "message": "Secure template access is not configured."}) from exc
     event_id = audit(actor, "biometric_verification", identity_ref, selected, "not_evaluated", request_id)
     return {"request_id": request_id, "verification_id": str(uuid.uuid4()), "outcome": "not_evaluated",
             "policy_decision": "pending", "reason_code": "CALIBRATION_REQUIRED",
