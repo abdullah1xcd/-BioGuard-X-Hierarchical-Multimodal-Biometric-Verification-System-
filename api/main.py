@@ -418,8 +418,15 @@ async def verify(
         experimental_result = "not_evaluated"
         experimental_scores = {}
         reason_code = "CALIBRATION_REQUIRED"
-        if bundle is not None and all(kind in candidates and kind in references for kind in selected) and set(selected).issubset({"face", "voice"}):
-            if set(selected) == {"face", "voice"}:
+        if bundle is not None and all(kind in candidates and kind in references for kind in selected):
+            if set(selected) == {"face", "voice", "fingerprint"} and "multimodal_fusion" in bundle:
+                combined_candidate = np.concatenate((candidates["face"], candidates["voice"], candidates["fingerprint"]))
+                combined_reference = np.concatenate((references["face"], references["voice"], references["fingerprint"]))
+                score, threshold = model_score(bundle, "multimodal_fusion", combined_candidate, combined_reference)
+                experimental_scores["multimodal_fusion"] = score
+                experimental_result = "match" if score >= threshold else "no_match"
+                reason_code = "EXPERIMENTAL_THREE_MODALITY_RESULT"
+            elif set(selected) == {"face", "voice"}:
                 face_score, face_threshold = model_score(bundle, "face", candidates["face"], references["face"])
                 voice_score, voice_threshold = model_score(bundle, "voice", candidates["voice"], references["voice"])
                 fusion_score, fusion_threshold = model_score(bundle, "early_fusion",
@@ -428,7 +435,7 @@ async def verify(
                 hierarchy = bundle.get("hierarchical", {})
                 margin = float(hierarchy.get("uncertainty_margin", 0.0))
                 if face_score >= face_threshold + margin:
-                    decision, route = face_score >= face_threshold, "face_confident"
+                    decision, route = True, "face_confident"
                 elif face_score <= face_threshold - margin:
                     decision, route = False, "face_confident_reject"
                 else:
@@ -438,12 +445,14 @@ async def verify(
                 reason_code = "EXPERIMENTAL_HIERARCHICAL_RESULT"
                 comparisons["hierarchical_route"] = route
                 comparisons["early_fusion_threshold"] = fusion_threshold
-            else:
+            elif len(selected) == 1 and selected[0] in bundle:
                 kind = selected[0]
                 score, threshold = model_score(bundle, kind, candidates[kind], references[kind])
                 experimental_scores[kind] = score
                 experimental_result = "match" if score >= threshold else "no_match"
                 reason_code = "EXPERIMENTAL_MODEL_RESULT"
+            elif "fingerprint" in selected:
+                reason_code = "FINGERPRINT_MODEL_NOT_AVAILABLE"
             comparisons["model_scores"] = experimental_scores
         elif "fingerprint" in selected:
             reason_code = "FINGERPRINT_MODEL_NOT_AVAILABLE"
