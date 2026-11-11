@@ -30,7 +30,7 @@ Keep the encryption key stable between restarts; otherwise previously stored enc
 
 ## Frontend scope
 
-- Responsive dark dashboard with illustrative overview metrics (not live analytics).
+- Responsive dark dashboard; unavailable analytics display empty states rather than fabricated values.
 - Identity enrollment with profile, modality, file, and consent validation.
 - Multimodal verification with claimed identity and authorization acknowledgement.
 - API requests for selected samples; no silent demo-success fallback when the API is unavailable.
