@@ -4,7 +4,7 @@
 |---|---|---|
 | Vanilla HTML/CSS/JS frontend | Implemented | No frontend framework; JavaScript syntax checked in CI |
 | Enrollment UI | Implemented | Form validation, selected modality uploads, consent acknowledgement, loading/success/error states |
-| Verification UI | Implemented | Claimed identity, selected sample uploads, authorization acknowledgement, explicit NOT EVALUATED result |
+| Verification UI | Implemented | Shows NOT EVALUATED when no trained bundle exists, or clearly labeled experimental match/no-match output while keeping policy pending |
 | FastAPI adapter | Experimental prototype | Authenticated enrollment and diagnostic verification routes; encrypted templates and metadata audit |
 | Face features | Implemented in new ML pipeline | HOG + LBP; unit-tested on synthetic image |
 | Voice features | Implemented in new ML pipeline | MFCC + ZCR + RMS; unit-tested on synthetic audio |
@@ -26,7 +26,7 @@ The GitHub Actions workflow checks API tests, traditional-ML unit tests, and Van
 
 ## Required owner-side work
 
-1. Collect consented, session-separated face/voice samples with matching filename stems.
+1. Collect consented, session-separated face/voice samples with matching filename stems; add same-stem fingerprint images for optional three-modality training.
 2. Run `python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports`.
 3. Review the test metrics and confusion matrices; do not report synthetic CI data as model performance.
 4. Review and test the API-to-model integration before enabling any verification outcome.
