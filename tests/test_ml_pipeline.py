@@ -8,6 +8,7 @@ from src.bioguard_ml import (
     calibrate_eer,
     evaluate,
     face_features,
+    fingerprint_features,
     make_pairs,
     voice_features,
     train_pipeline,
@@ -71,9 +72,10 @@ def test_training_pipeline_smoke_with_synthetic_paired_data(tmp_path):
     dataset = tmp_path / "dataset"
     for participant_index, frequency in ((1, 220), (2, 440)):
         participant = dataset / f"participant_{participant_index:03d}"
-        face_dir, voice_dir = participant / "face", participant / "voice"
+        face_dir, voice_dir, fingerprint_dir = participant / "face", participant / "voice", participant / "fingerprint"
         face_dir.mkdir(parents=True)
         voice_dir.mkdir(parents=True)
+        fingerprint_dir.mkdir(parents=True)
         for sample_index in range(10):
             rng = np.random.default_rng(participant_index * 100 + sample_index)
             image = rng.integers(0, 256, (160, 160), dtype=np.uint8)
@@ -84,12 +86,16 @@ def test_training_pipeline_smoke_with_synthetic_paired_data(tmp_path):
             signal = 0.2 * np.sin(2 * np.pi * (frequency + sample_index) * time)
             signal += rng.normal(0, 0.005, size=sample_rate).astype(np.float32)
             sf.write(voice_dir / f"sample_{sample_index:03d}.wav", signal.astype(np.float32), sample_rate)
+            fingerprint = rng.integers(0, 256, (160, 160), dtype=np.uint8)
+            assert cv2.imwrite(str(fingerprint_dir / f"sample_{sample_index:03d}.png"), fingerprint)
 
     output = tmp_path / "reports"
     report = train_pipeline(dataset, output, seed=7)
-    assert set(report["models"]) == {"hog", "lbp", "face", "voice", "early_fusion"}
+    assert set(report["models"]) == {"hog", "lbp", "face", "voice", "early_fusion", "fingerprint", "multimodal_fusion"}
     assert set(report["models"]["face"]) == {"SVM", "RandomForest"}
     assert set(report["models"]["voice"]) == {"SVM", "RandomForest"}
+    assert set(report["models"]["fingerprint"]) == {"SVM", "RandomForest"}
+    assert set(report["models"]["multimodal_fusion"]) == {"SVM", "RandomForest"}
     assert report["hierarchical"]["face_first_then_voice"] is True
     assert (output / "bioguard_traditional_ml.joblib").is_file()
     assert (output / "metrics.json").is_file()
