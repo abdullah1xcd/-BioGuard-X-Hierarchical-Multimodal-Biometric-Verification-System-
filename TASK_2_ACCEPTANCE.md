@@ -32,7 +32,8 @@ This checklist separates implemented software from work that still requires the 
 - [x] API-side bearer authentication, consent/purpose validation, file-size/decode checks, encrypted template storage, and metadata audit events.
 - [x] API verification remains NOT EVALUATED / PENDING; no access decision is fabricated.
 - [ ] Integration with the original biometric/fusion/risk services — blocked because those source modules are absent from both branches.
-- [ ] API loading of the newly trained model bundle — not implemented; the current API is still an isolated diagnostic prototype.
+- [x] API loads a versioned trained-model bundle and performs experimental face/voice SVM inference, early-fusion scoring, and hierarchical face-first/voice-fallback routing.
+- [ ] Real-data-trained model bundle and independent threshold review — blocked until consented dataset is supplied; API policy decision remains pending.
 
 ## Optional / bonus work
 
