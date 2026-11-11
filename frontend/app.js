@@ -245,17 +245,24 @@ function bindModuleEvents(page) {
       } else {
         const result = document.getElementById("verificationResult");
         result.hidden = false;
-        result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>Verification request processed</h3><p>Reference: ' +
-          escapeHtml(form.elements.identityRef.value.trim()) + '</p></div><span class="result-status">NOT EVALUATED</span></div>' +
+        const modelOutcome = body.outcome === "match" ? "MODEL MATCH (EXPERIMENTAL)" :
+          body.outcome === "no_match" ? "MODEL NO MATCH (EXPERIMENTAL)" : "NOT EVALUATED";
+        const hasModelResult = body.outcome === "match" || body.outcome === "no_match";
+        result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>' +
+          (hasModelResult ? "Experimental model result" : "Verification request processed") +
+          '</h3><p>Reference: ' + escapeHtml(form.elements.identityRef.value.trim()) +
+          '</p></div><span class="result-status">' + modelOutcome + '</span></div>' +
           '<div class="result-warning"><strong>No access decision was made.</strong><span>' +
-          escapeHtml(body.message || "Threshold calibration is required before verification decisions can be enabled.") +
+          escapeHtml(body.message || "A validated model and approved operating policy are required before access decisions.") +
           '</span></div><pre class="api-diagnostic">' + escapeHtml(JSON.stringify(body.diagnostic_similarity || {}, null, 2)) +
           '</pre><div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") +
           '</strong></span><span>Policy <strong>' + escapeHtml(body.policy_decision || "pending") + '</strong></span></div>';
         feedback.className = "form-feedback feedback-info";
-        feedback.textContent = "The API processed the samples, but its uncalibrated baseline is not allowed to verify identity or grant access.";
+        feedback.textContent = hasModelResult ?
+          "A trained model produced an experimental comparison only. The policy remains pending; no access is granted or denied." :
+          "The API processed the samples, but no calibrated model result is available.";
         result.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        showToast("Verification processed — not evaluated.");
+        showToast(hasModelResult ? "Experimental model comparison completed." : "Verification processed — not evaluated.");
       }
     } catch (error) {
       feedback.className = "form-feedback feedback-error";
