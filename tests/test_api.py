@@ -253,3 +253,67 @@ def test_api_uses_configured_model_but_keeps_policy_pending(monkeypatch, tmp_pat
     assert verified.json()["outcome"] == "match"
     assert verified.json()["policy_decision"] == "pending"
     assert verified.json()["reason_code"] == "EXPERIMENTAL_MODEL_RESULT"
+
+
+def test_three_modality_api_inference_uses_fingerprint_fusion(monkeypatch, tmp_path):
+    import io
+    import json
+    import cv2
+    import joblib
+    import soundfile as sf
+    from sklearn.dummy import DummyClassifier
+
+    configure(monkeypatch, tmp_path)
+    feature_count = 8356 + 30 + 24
+    classifier = DummyClassifier(strategy="constant", constant=1)
+    classifier.fit(np.zeros((2, feature_count), dtype=np.float32), np.asarray([0, 1]))
+    model_path = tmp_path / "three-modality.joblib"
+    joblib.dump({
+        "feature_version": "bioguard-traditional-v1",
+        "multimodal_fusion": {"SVM": {"model": classifier, "threshold": 0.5}},
+    }, model_path)
+    monkeypatch.setattr(main, "MODEL_PATH", model_path)
+    monkeypatch.setattr(main, "_MODEL_CACHE", None)
+    monkeypatch.setattr(main, "_MODEL_CACHE_MTIME", None)
+
+    rng = np.random.default_rng(91)
+    face = rng.integers(0, 256, (160, 160), dtype=np.uint8)
+    fingerprint = rng.integers(0, 256, (160, 160), dtype=np.uint8)
+    ok_face, face_encoded = cv2.imencode(".png", face)
+    ok_fingerprint, fingerprint_encoded = cv2.imencode(".png", fingerprint)
+    assert ok_face and ok_fingerprint
+    rate = 16000
+    time = np.arange(rate, dtype=np.float32) / rate
+    voice_buffer = io.BytesIO()
+    sf.write(voice_buffer, (0.2 * np.sin(2 * np.pi * 180 * time)).astype(np.float32), rate, format="WAV")
+
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    files = {
+        "face_sample": ("face.png", face_encoded.tobytes(), "image/png"),
+        "voice_sample": ("voice.wav", voice_buffer.getvalue(), "audio/wav"),
+        "fingerprint_sample": ("fingerprint.png", fingerprint_encoded.tobytes(), "image/png"),
+    }
+    with TestClient(main.app) as client:
+        enrolled = client.post(
+            "/api/v1/identities/enroll", headers=headers,
+            data={
+                "profile": json.dumps({"full_name": "Test Person", "identity_ref": "BG-FUSION-01"}),
+                "modalities": json.dumps(["face", "voice", "fingerprint"]),
+                "consent": json.dumps({"granted": True, "policy_version": "test-v1"}),
+            },
+            files=files,
+        )
+        assert enrolled.status_code == 201, enrolled.text
+        verified = client.post(
+            "/api/v1/verification/multimodal", headers=headers,
+            data={
+                "claimed_identity_ref": "BG-FUSION-01",
+                "modalities": json.dumps(["face", "voice", "fingerprint"]),
+                "authorization": json.dumps({"authorized": True, "purpose": "Three-modality integration test"}),
+            },
+            files=files,
+        )
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["outcome"] == "match"
+    assert verified.json()["reason_code"] == "EXPERIMENTAL_THREE_MODALITY_RESULT"
+    assert verified.json()["policy_decision"] == "pending"
