@@ -181,7 +181,7 @@ def test_verification_requires_uploaded_sample_even_without_enrollment_template(
 def test_api_feature_vectors_match_training_pipeline_dimensions(monkeypatch, tmp_path):
     import cv2
     import soundfile as sf
-    from src.bioguard_ml import face_features, voice_features
+    from src.bioguard_ml import face_features, fingerprint_features, voice_features
 
     configure(monkeypatch, tmp_path)
     image = np.random.default_rng(27).integers(0, 256, (160, 160), dtype=np.uint8)
@@ -201,6 +201,10 @@ def test_api_feature_vectors_match_training_pipeline_dimensions(monkeypatch, tmp
     api_voice = main.audio_features(audio_path.read_bytes())
     training_voice = voice_features(audio_path)
     np.testing.assert_allclose(api_voice, training_voice, rtol=1e-5, atol=1e-6)
+
+    api_fingerprint = main.image_features(encoded.tobytes(), "fingerprint")
+    training_fingerprint = fingerprint_features(face_path)
+    np.testing.assert_allclose(api_fingerprint, training_fingerprint, rtol=1e-5, atol=1e-6)
 
 
 def test_api_uses_configured_model_but_keeps_policy_pending(monkeypatch, tmp_path):
