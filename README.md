@@ -16,7 +16,7 @@ The expected folder structure and matching filename-stem rule are documented in 
 For the experimental HTTP API, install `requirements-api.txt` and follow [api/README.md](api/README.md). For the Vanilla JS frontend, follow [frontend/README.md](frontend/README.md).
 
 ## Layout
-`src/bioguard_ml.py` contains the new traditional-ML training/evaluation pipeline; `api/` contains the experimental FastAPI adapter; `frontend/` contains the Vanilla HTML/CSS/JS UI; `scripts/run_ml_pipeline.py` is the training CLI; `tests/` contains CI tests. The former research modules and Streamlit application described in older documentation are not present in either branch. See BUILD_STATUS.md and ML_PIPELINE.md for verified status.
+`src/bioguard_ml.py` contains the new traditional-ML training/evaluation pipeline; `api/` contains the experimental FastAPI adapter; `frontend/` contains the Vanilla HTML/CSS/JS UI; `scripts/run_ml_pipeline.py` is the training CLI; `tests/` contains CI tests. The former research modules and Streamlit application described in older documentation are not present in either branch. See [TASK_2_ACCEPTANCE.md](TASK_2_ACCEPTANCE.md), [BUILD_STATUS.md](BUILD_STATUS.md), and [ML_PIPELINE.md](ML_PIPELINE.md) for the verified status and remaining blockers.
 
 ## Experimental FastAPI prototype
 
