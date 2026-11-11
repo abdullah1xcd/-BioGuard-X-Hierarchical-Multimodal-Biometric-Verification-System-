@@ -209,7 +209,7 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
     bundle, report = {}, {
         "dataset": str(Path(dataset_root)),
         "split_counts": {key: len(value) for key, value in splits.items()},
-        "protocol": "participant-disjoint sample pairs; matching face/voice filename stems; validation EER threshold",
+        "protocol": "per-participant disjoint sample files; pairs built separately within each split; matching face/voice filename stems; validation EER threshold",
         "models": {},
         "hierarchical": {},
     }
