@@ -2,8 +2,8 @@
 
 ## Latest completed code-validation run
 
-- Workflow: [BioGuard API tests, run #74](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43117259220)
-- Commit tested: `0da97787847c89b82d7e776176a253707543d728`
+- Workflow: [BioGuard API tests, run #75](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43117262831)
+- Commit tested: `c4715803f91e069e7bff9f7f7e5e308e2ec73b26`
 - Result: **PASS**
 - Pytest: **18 passed, 0 failed**
 - Python compilation: PASS
