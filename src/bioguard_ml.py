@@ -101,8 +101,8 @@ def voice_features(path: str | Path) -> np.ndarray:
 
 
 def _split_stems(stems: list[str], seed: int) -> dict[str, set[str]]:
-    if len(stems) < 5:
-        raise ValueError("Each participant needs at least 5 paired face/voice samples.")
+    if len(stems) < 10:
+        raise ValueError("Each participant needs at least 10 matched face/voice samples for disjoint train/validation/test pair evaluation.")
     shuffled = sorted(stems)
     random.Random(seed).shuffle(shuffled)
     n = len(shuffled)
@@ -224,7 +224,7 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
         x_test, y_test, _ = make_pairs(test_records, key)
         estimators = {
             "SVM": make_pipeline(StandardScaler(), SVC(C=1.0, kernel="rbf", probability=True, class_weight="balanced", random_state=seed)),
-            "RandomForest": RandomForestClassifier(n_estimators=300, min_samples_leaf=2, class_weight="balanced", random_state=seed, n_jobs=-1),
+            "RandomForest": RandomForestClassifier(n_estimators=100, min_samples_leaf=2, class_weight="balanced", random_state=seed, n_jobs=-1),
         }
         bundle[key] = {}
         report["models"][key] = {}
@@ -240,24 +240,24 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
 
     face_model = bundle["face"]["SVM"]
     voice_model = bundle["voice"]["SVM"]
-    face_train, face_y, _ = make_pairs(splits["train"], "face")
-    face_val, face_val_y, _ = make_pairs(splits["validation"], "face")
+    face_val, _, _ = make_pairs(splits["validation"], "face")
     face_test, test_y, _ = make_pairs(splits["test"], "face")
     voice_test, _, _ = make_pairs(splits["test"], "voice")
     face_scores = face_model["model"].predict_proba(face_test)[:, 1]
     voice_scores = voice_model["model"].predict_proba(voice_test)[:, 1]
     face_threshold = face_model["threshold"]
     voice_threshold = voice_model["threshold"]
-    margin = 0.10
+    face_validation_scores = face_model["model"].predict_proba(face_val)[:, 1]
+    margin = max(0.05, float(np.quantile(np.abs(face_validation_scores - face_threshold), 0.25)))
     hierarchical = np.where(
         face_scores >= face_threshold + margin, 1,
         np.where(face_scores <= face_threshold - margin, 0, (voice_scores >= voice_threshold).astype(int)),
     )
     tn, fp, fn, tp = confusion_matrix(test_y, hierarchical, labels=[0, 1]).ravel()
+    hierarchy_metrics = evaluate(test_y, hierarchical.astype(np.float32), 0.5)
     report["hierarchical"] = {
+        **hierarchy_metrics,
         "uncertainty_margin": margin,
-        "accuracy": float(accuracy_score(test_y, hierarchical)),
-        "confusion_matrix": [[int(tn), int(fp)], [int(fn), int(tp)]],
         "face_first_then_voice": True,
     }
     bundle["protocol"] = report["protocol"]
