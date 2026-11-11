@@ -291,7 +291,7 @@ async def enroll(
     email = profile_data.get("email")
     if email is not None:
         if (not isinstance(email, str) or len(email.strip()) > 254
-                or not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", email.strip())):
+                or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email.strip())):
             raise HTTPException(422, detail={"code": "INVALID_EMAIL", "message": "Provide a valid email address or leave it empty."})
         email = email.strip().lower()
     selected = parse_modalities(modalities)
