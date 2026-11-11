@@ -2,52 +2,44 @@
 
 ## Status
 
-An **experimental FastAPI prototype is now implemented** in `api/main.py`, with a Vanilla JS client integration in `frontend/app.js`. It is a new baseline because the original Python modules described in the root project README (`src/`, `app/`, `scripts/`, and original tests) were not present in the accessible GitHub branch. This prototype does not recreate or claim parity with the missing original biometric models/services.
+The Vanilla JS frontend is integrated with the experimental FastAPI adapter in `api/main.py`. The original Python research modules described in older documentation were not present in either accessible branch, so this is a new, isolated implementation rather than a recreation of those missing modules.
 
-## Implemented routes
+## Routes
 
 | Method | Route | Behavior |
 |---|---|---|
-| GET | `/api/v1/health` | Reports API and encryption configuration status |
-| POST | `/api/v1/identities/enroll` | Consent-gated enrollment; extracts baseline features and stores encrypted vectors |
-| POST | `/api/v1/verification/multimodal` | Extracts query features and computes diagnostic similarity against stored templates |
+| GET | `/api/v1/health` | Reports API, encryption, and configured model status |
+| POST | `/api/v1/identities/enroll` | Consent-gated enrollment; extracts and encrypts feature vectors |
+| POST | `/api/v1/verification/multimodal` | Loads a trusted versioned model bundle and produces experimental comparison results where supported |
 
 Enrollment multipart fields: `profile` JSON, `modalities` JSON array, `consent` JSON, and selected `face_sample`, `voice_sample`, and/or `fingerprint_sample` file parts.
 
-Verification multipart fields: `claimed_identity_ref`, `modalities`, `authorization` JSON, and matching sample file parts.
+Verification multipart fields: `claimed_identity_ref`, `modalities`, `authorization` JSON, and corresponding sample file parts.
 
-## Current feature pipeline
+## Feature compatibility
 
-- Face: grayscale normalization and HOG descriptor.
-- Voice: MFCC-style spectral statistics computed from decoded audio.
-- Fingerprint: multi-orientation Gabor texture statistics.
-- Storage: SQLite identity/template/audit metadata; feature vectors encrypted with Fernet.
-- Uploads: bounded size, server-side decode, processed in memory, not persisted.
-- Security: bearer operator token, explicit consent and policy version for enrollment, authorized purpose for verification, and metadata-only audit events.
+- Face: HOG + LBP (8,356 dimensions), shared between training and API.
+- Voice: MFCC statistics + ZCR + RMS (30 dimensions), shared between training and API.
+- Fingerprint: 24-dimensional multi-orientation Gabor texture descriptor, shared between training and API.
+- Models: calibrated SVM and Random Forest per modality; face+voice early fusion; optional face+voice+fingerprint fusion; face-first hierarchical route with voice fallback.
+- Bundle: `reports/bioguard_traditional_ml.joblib`, versioned as `bioguard-traditional-v1`; configure `BIOGUARD_MODEL_PATH` to its path.
 
-These are experimental handcrafted descriptors, not trained or validated identity models. Face detection/alignment, liveness detection, biometric threshold calibration, independent accuracy evaluation, production identity-provider integration, rate limiting, and production deployment hardening are not implemented.
+Feature parity is covered by automated tests. The API can return experimental `match` / `no_match` results for a configured trained bundle. If no compatible bundle or required modality model exists, it returns `not_evaluated`.
 
-## Non-negotiable verification safety gate
+## Safety and security boundary
 
-The verification endpoint always returns:
+- `policy_decision` remains `pending` for every API response. Experimental model output is not an access grant or denial.
+- Enrollment requires operator authentication and explicit consent/policy version; verification requires operator authentication and a documented purpose.
+- Upload sizes and decoding are checked server-side. Raw uploads are processed in memory and not persisted.
+- Feature templates are encrypted with Fernet; SQLite stores identity/template metadata and metadata-only audit events.
+- Face detection/alignment, liveness/spoof detection, rate limiting, production identity-provider integration, key management, retention/deletion workflow, HTTPS deployment hardening, and independent security review are not implemented.
 
-- `outcome: not_evaluated`
-- `policy_decision: pending`
-- `reason_code: CALIBRATION_REQUIRED`
-
-Diagnostic similarity values are not identity confidence and must never be used to grant or deny access. The frontend explicitly displays **NOT EVALUATED**. Do not remove this gate until the actual intended models and dataset are available, operating thresholds are calibrated and independently evaluated, and the project's authorization/risk policy is integrated and tested.
+Never load an untrusted joblib artifact: loading pickle-based model bundles can execute code. Configure `BIOGUARD_MODEL_PATH` only to a trusted artifact generated by this project.
 
 ## Local development
 
-Follow [api/README.md](../api/README.md). Install the optional API dependencies with `pip install -r requirements-api.txt`; the original root `requirements.txt` and Streamlit startup are unchanged. Configure a strong `BIOGUARD_API_TOKEN`, a stable `BIOGUARD_ENCRYPTION_KEY`, and exact local CORS origins. Never commit secrets. The browser token prompt is a local-development convenience only; use a reviewed server-side session/OIDC design for production.
+Follow [api/README.md](../api/README.md). After collecting consented data and training the pipeline, set `BIOGUARD_MODEL_PATH` to the generated bundle. The browser token prompt is a local-development convenience only; it is not a production authentication design.
 
-## Tests and remaining work
+## Verification
 
-Basic API tests are added under `tests/test_api.py` for health/calibration status, authentication rejection, encrypted template round-trip, and identity-reference validation. They have **not yet been executed in this remote repository environment**. Run:
-
-```powershell
-pip install -r requirements-api.txt
-python -m pytest tests/test_api.py -q
-```
-
-Next steps: execute tests in a real checkout; add end-to-end tests using synthetic/consented samples; review atomicity and deletion/retention; validate each extractor on representative datasets; integrate the original biometric/fusion/hierarchy/risk services if their source is restored; and only then consider calibrated verification decisions.
+GitHub Actions run #65 passed 17 tests, Python compilation, Vanilla JS syntax checks, and dependency consistency. Tests include synthetic end-to-end model training, API/model feature parity, and model-bundle inference. These tests do not establish real biometric accuracy.
