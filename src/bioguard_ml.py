@@ -261,7 +261,9 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
         "uncertainty_margin": margin,
         "face_first_then_voice": True,
     }
+    bundle["hierarchical"] = {"face_threshold": face_threshold, "voice_threshold": voice_threshold, "uncertainty_margin": margin}
     bundle["protocol"] = report["protocol"]
+    bundle["feature_version"] = "bioguard-traditional-v1"
     joblib.dump(bundle, output / "bioguard_traditional_ml.joblib")
     (output / "metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
