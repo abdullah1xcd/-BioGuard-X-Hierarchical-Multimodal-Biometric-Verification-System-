@@ -99,3 +99,12 @@ def test_training_pipeline_smoke_with_synthetic_paired_data(tmp_path):
     assert report["hierarchical"]["face_first_then_voice"] is True
     assert (output / "bioguard_traditional_ml.joblib").is_file()
     assert (output / "metrics.json").is_file()
+
+
+def test_fingerprint_extractor_returns_24_finite_features(tmp_path):
+    image = np.random.default_rng(29).integers(0, 256, (160, 160), dtype=np.uint8)
+    path = tmp_path / "fingerprint.png"
+    assert cv2.imwrite(str(path), image)
+    features = fingerprint_features(path)
+    assert features.shape == (24,)
+    assert np.isfinite(features).all()
