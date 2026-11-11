@@ -34,7 +34,7 @@ jobs:
       - name: Check Python compilation
         run: python -m compileall -q api src scripts tests
       - name: Check Vanilla JavaScript syntax
-        run: node --check frontend/app.js && node --check frontend/modules.js
+        run: node --check frontend/config.js && node --check frontend/app.js && node --check frontend/modules.js
       - name: Check dependency consistency
         run: python -m pip check
       - name: Run API and ML tests
