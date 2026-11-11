@@ -1,9 +1,9 @@
 """BioGuard X experimental API.
 
-This is a new, isolated HTTP adapter and baseline handcrafted feature pipeline.
+This isolated adapter uses feature extractors aligned with the new traditional-ML
+training pipeline. Trained bundles can produce experimental match/no-match
+outputs; policy decisions remain pending and are never used to grant access.
 It does not claim parity with the missing original research implementation.
-Verification is deliberately NOT_EVALUATED until thresholds are calibrated on
-a consented, representative validation dataset and reviewed by the project team.
 """
 from __future__ import annotations
 
