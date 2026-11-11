@@ -296,8 +296,10 @@ async def enroll(
         email = email.strip().lower()
     selected = parse_modalities(modalities)
     supplied = {"face": face_sample, "voice": voice_sample, "fingerprint": fingerprint_sample}
-    if any(supplied[k] is None for k in selected) or any(supplied[k] is not None for k in ALLOWED - set(selected)):
-        raise HTTPException(400, detail={"code": "SAMPLE_MODALITY_MISMATCH", "message": "Uploaded samples must exactly match selected modalities."})
+    if any(supplied[k] is None for k in selected):
+        raise HTTPException(400, detail={"code": "MISSING_SAMPLE", "message": "Upload a sample for every selected modality."})
+    if any(supplied[k] is not None for k in ALLOWED - set(selected)):
+        raise HTTPException(400, detail={"code": "SAMPLE_MODALITY_MISMATCH", "message": "Do not upload samples for modalities that were not selected."})
     try:
         get_fernet()
         extracted = {}
@@ -349,8 +351,10 @@ async def verify(
         raise HTTPException(403, detail={"code": "AUTHORIZATION_REQUIRED", "message": "A documented verification purpose (3–200 characters) is required."})
     selected = parse_modalities(modalities)
     supplied = {"face": face_sample, "voice": voice_sample, "fingerprint": fingerprint_sample}
-    if any(supplied[k] is None for k in selected) or any(supplied[k] is not None for k in ALLOWED - set(selected)):
-        raise HTTPException(400, detail={"code": "SAMPLE_MODALITY_MISMATCH", "message": "Uploaded samples must exactly match selected modalities."})
+    if any(supplied[k] is None for k in selected):
+        raise HTTPException(400, detail={"code": "MISSING_SAMPLE", "message": "Upload a sample for every selected modality."})
+    if any(supplied[k] is not None for k in ALLOWED - set(selected)):
+        raise HTTPException(400, detail={"code": "SAMPLE_MODALITY_MISMATCH", "message": "Do not upload samples for modalities that were not selected."})
     with db() as conn:
         identity = conn.execute("SELECT active FROM identities WHERE identity_ref=?", (identity_ref,)).fetchone()
         rows = conn.execute("SELECT modality, encrypted_vector FROM templates WHERE identity_ref=?", (identity_ref,)).fetchall()
