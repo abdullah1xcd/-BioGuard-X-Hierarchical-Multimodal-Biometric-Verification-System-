@@ -1,23 +1,38 @@
 # BioGuard X — Hierarchical Multimodal Biometric Verification (Research Prototype)
 
-Traditional-ML only (no deep learning). The current branch contains a new HOG/LBP face + MFCC/ZCR/RMS voice pair-verification training pipeline, SVM/Random Forest classifiers, early fusion, and face-first hierarchical evaluation. See ML_PIPELINE.md for the exact dataset contract and current limitations.
+BioGuard X is a traditional-machine-learning coursework prototype. It includes HOG/LBP face features, MFCC/ZCR/RMS voice features, optional Gabor fingerprint features, SVM and Random Forest classifiers, face+voice early fusion, optional three-modality fusion, and face-first hierarchical verification. No deep-learning identity model is used.
 
 ## Quick start (Windows)
-    py -3.12 -m venv .venv
-    .venv\Scripts\activate
-    pip install -r requirements.txt
-    python -m pytest tests -q
 
-After collecting consented, matched face/voice samples, run:
-    python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python -m pytest tests -q
+```
 
-The expected folder structure and matching filename-stem rule are documented in [DATASET_GUIDE.md](DATASET_GUIDE.md) and [ML_PIPELINE.md](ML_PIPELINE.md). The repository does not contain biometric datasets or pre-trained models, so the training command must be run locally before reporting real performance metrics.
+After collecting consented samples, train and evaluate:
 
-For the experimental HTTP API, install `requirements-api.txt` and follow [api/README.md](api/README.md). For the Vanilla JS frontend, follow [frontend/README.md](frontend/README.md).
+```powershell
+python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports
+```
+
+The dataset layout and matching filename-stem rule are documented in [DATASET_GUIDE.md](DATASET_GUIDE.md) and [ML_PIPELINE.md](ML_PIPELINE.md). No biometric dataset or trained model is included, so real-data metrics must be generated locally and must not be replaced by synthetic CI results.
+
+## Experimental API and frontend
+
+Install API dependencies with `pip install -r requirements-api.txt` and follow [api/README.md](api/README.md). The API can load the versioned model bundle from `BIOGUARD_MODEL_PATH`, perform experimental face/voice/fingerprint inference, and keep its authorization policy decision pending. It never grants or denies access. The frontend is pure Vanilla HTML/CSS/JS; see [frontend/README.md](frontend/README.md).
 
 ## Layout
-`src/bioguard_ml.py` contains the new traditional-ML training/evaluation pipeline; `api/` contains the experimental FastAPI adapter; `frontend/` contains the Vanilla HTML/CSS/JS UI; `scripts/run_ml_pipeline.py` is the training CLI; `tests/` contains CI tests. The former research modules and Streamlit application described in older documentation are not present in either branch. See [TASK_2_ACCEPTANCE.md](TASK_2_ACCEPTANCE.md), [BUILD_STATUS.md](BUILD_STATUS.md), and [ML_PIPELINE.md](ML_PIPELINE.md) for the verified status and remaining blockers.
 
-## Experimental FastAPI prototype
+- `src/bioguard_ml.py`: feature extraction, traditional classifiers, fusion, calibration, metrics, and training.
+- `scripts/run_ml_pipeline.py`: training CLI.
+- `api/`: experimental FastAPI adapter and encrypted template storage.
+- `frontend/`: Vanilla HTML/CSS/JS interface.
+- `tests/`: API, feature-parity, model-inference, and synthetic training tests.
 
-An isolated development API has been added under `api/` because the original Python source directories described in this README are not present in the accessible branch snapshot. It provides consent-gated enrollment, encrypted handcrafted feature-template storage, and diagnostic similarity processing. It is **not** a recreation of the missing trained biometric/fusion/hierarchy/risk modules. Verification is deliberately hard-gated to `not_evaluated` / `pending` until the pipeline is validated and calibrated. See [ML_PIPELINE.md](ML_PIPELINE.md), [api/README.md](api/README.md), and [frontend/API_INTEGRATION_CONTRACT.md](frontend/API_INTEGRATION_CONTRACT.md). Install its optional dependencies with `pip install -r requirements-api.txt`.
+The original research modules and Streamlit application described in older documentation were absent from both accessible branches. This branch does not claim to restore them. See [TASK_2_ACCEPTANCE.md](TASK_2_ACCEPTANCE.md), [BUILD_STATUS.md](BUILD_STATUS.md), and [TEST_REPORT.md](TEST_REPORT.md) for exact implementation and remaining validation gates.
+
+## Important limitations
+
+No real-data training has been run because no consented dataset was supplied. The current split is sample-level rather than session-aware or participant-independent. Face detection/alignment, liveness/spoof resistance, speech-command permission workflows, production security hardening, and independent external evaluation are not implemented. This prototype is for coursework/research only, not real-world access control.
