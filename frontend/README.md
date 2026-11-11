@@ -1,48 +1,51 @@
 # BioGuard X — Vanilla Frontend
 
-This folder contains the BioGuard X dashboard and the next two frontend modules, built with **HTML5, CSS3, and Vanilla JavaScript**. It does not use React, Vue, Angular, Streamlit, or a frontend build framework.
+The dashboard remains **HTML5, CSS3, and Vanilla JavaScript**. No frontend framework or build system is introduced.
 
 ## Run locally
 
-From the \`frontend\` directory, start a static server:
+Terminal 1 — API:
 
-\`\`\`bash
-python -m http.server 5500
-\`\`\`
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements-api.txt
+$env:BIOGUARD_API_TOKEN = "replace-with-a-long-random-secret"
+$env:BIOGUARD_ENCRYPTION_KEY = (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+uvicorn api.main:app --reload
+```
 
-Then visit \`http://localhost:5500\`. The modules use local JavaScript and do not require a package install.
+Terminal 2 — frontend:
 
-## Current frontend scope
+```powershell
+cd frontend
+py -m http.server 5500
+```
 
-- Responsive dark security operations dashboard with illustrative metrics and events
-- Identity Enrollment form with profile validation, modality selection, sample-file checks, and explicit consent acknowledgement
-- Biometric Verification form with claimed identity, modality selection, sample-file checks, and authorization acknowledgement
-- Clear loading, validation, success, and demo-result states
-- Face and voice modalities plus optional fingerprint (Gabor + HOG/LBP)
-- Mobile navigation and responsive form layouts
+Open `http://localhost:5500`. The first enrollment/verification request asks for the API operator token. It remains in page memory only and is not persisted. The API base defaults to `http://127.0.0.1:8000`; set `window.BIOGUARD_API_BASE` before loading `app.js` if your local API uses another address.
 
-## Demo-mode boundary
+Keep the encryption key stable between restarts; otherwise previously stored encrypted templates cannot be read. Never commit either secret. This token flow is for local coursework development only, not production deployment.
 
-The enrollment and verification workflows currently perform **client-side form validation only**. Selected files are not uploaded, stored, or analyzed. The UI does not create an identity record, extract biometric features, compare samples, calculate match scores, calculate risk, or grant access. The verification result intentionally says **NOT EVALUATED**.
+## Frontend scope
 
-Use synthetic or explicitly consented test material only. Do not use real biometric samples in this browser-only preview.
+- Responsive dark security operations dashboard with illustrative overview metrics
+- Identity enrollment with profile, modality, file, and consent validation
+- Multimodal verification with claimed identity and authorization acknowledgement
+- API requests for selected samples; no silent demo-success fallback when the API is unavailable
+- Verification remains visibly **NOT EVALUATED** until a validated/calibrated biometric model exists
 
-## Backend status and integration plan
+## Experimental backend boundary
 
-The project documentation describes a **17-page Streamlit application** (\`streamlit run app/main.py\`) with Python biometric engines and SQLite. However, direct GitHub tree inspection on 2026-11-11 found that neither \`main\` nor \`frontend/vanilla-js-redesign\` contains the referenced \`src/\`, \`app/\`, \`scripts/\`, or \`tests/\` directories. The documented \`app/main.py\` entry point and Python service implementations are therefore not available in the repository tree inspected for this integration. No FastAPI dependency, application entry point, router, or OpenAPI contract is present. No API endpoint can be confirmed, so the frontend does not send requests.
+The GitHub branch did not contain the original `src/`, `app/`, `scripts/`, or original `tests/` modules described in the project README. A new isolated FastAPI prototype has therefore been added under `api/`; it does not recreate or claim parity with those missing modules.
 
-A separately mounted FastAPI adapter may be the smallest safe HTTP layer once the missing Python source is restored and the existing service interfaces are inspected. A draft contract, proposed schemas, security requirements, and integration gates are documented in [API_INTEGRATION_CONTRACT.md](./API_INTEGRATION_CONTRACT.md). Candidate routes in this README are proposals only, not implemented or verified:
+The prototype currently:
+- Validates and decodes selected image/audio uploads server-side.
+- Extracts baseline handcrafted features (HOG image descriptor, MFCC-style audio statistics, and Gabor texture statistics).
+- Encrypts stored feature vectors with Fernet and stores identity metadata/templates/audit metadata in SQLite.
+- Requires an operator bearer token, explicit consent for enrollment, and an authorized purpose for verification.
+- Processes raw samples in memory; raw uploads are not stored.
+- Computes diagnostic similarity values but **always returns `outcome=not_evaluated` and `policy_decision=pending`**. It must not grant or deny access.
 
-| Purpose | Candidate route | Status |
-|---|---|---|
-| Create identity enrollment | \`POST /api/identities/enroll\` | Proposed only |
-| List identities | \`GET /api/identities\` | Proposed only |
-| Verify selected modalities | \`POST /api/verification/multimodal\` | Proposed only |
-| Read verification events | \`GET /api/verification/events\` | Proposed only |
-| Read dashboard summary | \`GET /api/dashboard/summary\` | Proposed only |
+These handcrafted descriptors are experimental signal-processing features, not validated face/voice/fingerprint identity models. There is no face detection/alignment, liveness detection, threshold calibration, independent accuracy evaluation, risk engine, or production-grade identity provider in this prototype. Do not use it for real access control or high-stakes identity decisions.
 
-Before connecting the browser, agree on multipart upload fields, accepted media types and size limits, authentication/session handling, response schemas, error codes, and whether raw samples or derived templates are retained. Keep biometric processing, template storage, risk evaluation, authorization, and audit writes on the Python server. Enforce consent, access control, rate limits, input validation, secure storage, and deletion policy server-side. Risk signals must never grant access by themselves.
-
-## Existing Python system
-
-The frontend is a presentation layer only. Do not replace or rewrite the existing Python face, voice, fingerprint, fusion, hierarchy, security, automation, or SQLite modules when their source is restored. The current GitHub branch snapshot exposes project documentation describing those components, but not their implementation files. Keep the frontend in demo mode until the actual backend code is available and the integration gates in [API_INTEGRATION_CONTRACT.md](./API_INTEGRATION_CONTRACT.md) are satisfied.
+See [API README](../api/README.md) for setup and [API integration status](./API_INTEGRATION_CONTRACT.md) for the current contract and gates. Keep the original Python system intact if/when its source is restored; the new API is isolated and should be adapted to call the original domain services rather than duplicating them.
