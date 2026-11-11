@@ -29,6 +29,8 @@ def test_protected_enrollment_rejects_missing_auth(monkeypatch, tmp_path):
 
 def test_feature_vectors_are_encrypted_and_round_trip(monkeypatch, tmp_path):
     configure(monkeypatch, tmp_path)
+    with main.db() as conn:
+        conn.execute("INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)", ("BG-001", "Test Person", None, main.utc_now(), "test-v1"))
     vector = np.asarray([0.1, 0.2, 0.3], dtype=np.float32)
     main.store_template("BG-001", "face", vector)
     with main.db() as conn:
