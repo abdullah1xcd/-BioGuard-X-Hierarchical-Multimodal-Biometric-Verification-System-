@@ -1,4 +1,4 @@
-# BioGuard X — Intelligent Adaptive Multimodal Biometric Security & Automation Platform
+# BioGuard X — Hierarchical Multimodal Biometric Verification (Research Prototype)
 
 Traditional-ML only (no deep learning). The current branch contains a new HOG/LBP face + MFCC/ZCR/RMS voice pair-verification training pipeline, SVM/Random Forest classifiers, early fusion, and face-first hierarchical evaluation. See ML_PIPELINE.md for the exact dataset contract and current limitations.
 
