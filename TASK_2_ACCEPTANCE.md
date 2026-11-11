@@ -37,7 +37,8 @@ This checklist separates implemented software from work that still requires the 
 
 ## Optional / bonus work
 
-- [ ] Trained fingerprint classifier and fusion with face/voice — not implemented. The API's Gabor descriptor is diagnostic only.
+- [x] Optional non-live fingerprint Gabor features, SVM/Random Forest classifiers, and three-modality fusion when matched fingerprint samples exist for every face/voice sample.
+- [ ] Real-data fingerprint and multimodal results — blocked until a consented dataset with matched fingerprint captures is supplied.
 - [ ] Speech-command verification and identity-based permissions — not present in the accessible repository.
 - [ ] Real-time webcam/microphone capture — not implemented in this Vanilla JS flow.
 - [ ] Liveness/spoof evaluation — not implemented.
