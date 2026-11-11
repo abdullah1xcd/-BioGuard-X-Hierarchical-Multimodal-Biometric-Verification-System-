@@ -23,7 +23,7 @@ OpenAPI docs: http://127.0.0.1:8000/docs
 
 - Authenticated, consent-gated enrollment accepts face, voice and/or fingerprint samples.
 - Upload sizes and actual decodability are checked server-side.
-- Face and voice enrollment features use the same HOG+LBP and MFCC+ZCR+RMS extractors as the traditional-ML training pipeline; feature parity is covered by tests. Fingerprint currently uses a Gabor texture descriptor only.
+- Face and voice enrollment features use the same HOG+LBP and MFCC+ZCR+RMS extractors as the traditional-ML training pipeline; feature parity is covered by tests. Fingerprint uses the same 24-dimensional Gabor descriptor as training. If a versioned bundle was trained with complete matched fingerprint samples, the API supports fingerprint-only experimental scoring and three-modality fusion; otherwise fingerprint verification remains not evaluated.
 - Set `BIOGUARD_MODEL_PATH` to `reports/bioguard_traditional_ml.joblib` after running the training pipeline. The API loads the versioned bundle and can return experimental `match` / `no_match` results for face-only, voice-only, early-fusion scoring, and face-first hierarchical routing when the corresponding trained models are present.
 - `policy_decision` deliberately remains `pending` for every result. A model output is not an authorization decision. The bundle must be trained on consented representative data and independently reviewed before any operational use.
 - Audit records contain operation metadata, not raw samples or feature vectors.
