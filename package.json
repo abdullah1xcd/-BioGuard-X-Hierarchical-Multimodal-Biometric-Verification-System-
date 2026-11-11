@@ -2,5 +2,8 @@
   "name": "bioguard-x-static-site",
   "version": "1.0.0",
   "private": true,
-  "description": "BioGuard X static Vanilla JavaScript frontend; no npm dependencies."
+  "description": "BioGuard X static Vanilla JavaScript frontend; no npm dependencies.",
+  "scripts": {
+    "build": "node -e \"process.exit(0)\""
+  }
 }
