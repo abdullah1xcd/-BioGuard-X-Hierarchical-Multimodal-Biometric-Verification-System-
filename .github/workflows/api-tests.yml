@@ -27,4 +27,4 @@ jobs:
         env:
           BIOGUARD_API_TOKEN: ci-test-token
           BIOGUARD_ENCRYPTION_KEY: ${{ secrets.BIOGUARD_CI_ENCRYPTION_KEY }}
-        run: python -m pytest tests/test_api.py -q
+        run: python -m pytest tests/test_api.py tests/test_ml_pipeline.py -q
