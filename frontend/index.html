@@ -87,33 +87,33 @@
         <div id="overviewView">
         <section class="notice-banner">
           <div class="notice-icon">i</div>
-          <div><strong>Preview environment</strong><span>Dashboard figures are illustrative demo data. Connect the BioGuard API to display live biometric results.</span></div>
+          <div><strong>Preview environment</strong><span>Live statistics are unavailable until authenticated analytics endpoints are implemented.</span></div>
           <button class="notice-dismiss" id="dismissNotice" aria-label="Dismiss notice">×</button>
         </section>
 
         <section class="metrics-grid" aria-label="Security metrics">
           <article class="metric-card">
             <div class="metric-top"><span>Total identities</span><span class="metric-icon violet">♙</span></div>
-            <div class="metric-value" data-count="1248">1,248</div>
-            <div class="metric-foot"><span class="trend positive">↗ 8.2%</span><span>vs. last month</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-foot"><span class="trend">Not available</span><span>Analytics API not implemented</span></div>
             <div class="metric-spark spark-violet"><svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 28 C12 27 14 19 25 22 S42 12 52 17 S68 10 78 14 S95 4 105 9 S114 3 120 2" /></svg></div>
           </article>
           <article class="metric-card">
             <div class="metric-top"><span>Verifications today</span><span class="metric-icon cyan">◎</span></div>
-            <div class="metric-value" data-count="856">856</div>
-            <div class="metric-foot"><span class="trend positive">↗ 12.4%</span><span>vs. yesterday</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-foot"><span class="trend">Not available</span><span>Analytics API not implemented</span></div>
             <div class="metric-spark spark-cyan"><svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 25 C12 24 15 27 25 19 S39 23 49 14 S63 18 73 11 S87 15 96 8 S111 12 120 2" /></svg></div>
           </article>
           <article class="metric-card">
             <div class="metric-top"><span>Successful rate</span><span class="metric-icon green">✓</span></div>
-            <div class="metric-value">98.6<span class="metric-unit">%</span></div>
-            <div class="metric-foot"><span class="trend positive">↗ 0.6%</span><span>vs. last week</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-foot"><span class="trend">Not available</span><span>Analytics API not implemented</span></div>
             <div class="metric-spark spark-green"><svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 23 C13 20 18 24 29 17 S43 19 54 14 S69 17 80 9 S96 13 105 6 S115 7 120 2" /></svg></div>
           </article>
           <article class="metric-card">
             <div class="metric-top"><span>Risk alerts</span><span class="metric-icon orange">⚑</span></div>
-            <div class="metric-value">07</div>
-            <div class="metric-foot"><span class="trend negative">↑ 2 alerts</span><span>require review</span></div>
+            <div class="metric-value">—</div>
+            <div class="metric-foot"><span class="trend">Not available</span><span>Alerts API not implemented</span></div>
             <div class="metric-spark spark-orange"><svg viewBox="0 0 120 34" preserveAspectRatio="none"><path d="M0 29 C12 28 15 15 26 21 S43 9 53 17 S67 5 78 13 S91 3 102 10 S114 5 120 1" /></svg></div>
           </article>
         </section>
@@ -121,7 +121,7 @@
         <section class="content-grid">
           <article class="panel activity-panel">
             <div class="panel-heading">
-              <div><h2>Verification activity</h2><p>Authentication volume over the last 7 days</p></div>
+              <div><h2>Verification activity</h2><p>Live activity analytics endpoint is not implemented.</p></div>
               <button class="select-button" id="periodSelect">Last 7 days <span>⌄</span></button>
             </div>
             <div class="chart-legend"><span><i class="legend-dot legend-primary"></i> Successful</span><span><i class="legend-dot legend-muted"></i> Failed</span></div>
@@ -142,12 +142,12 @@
           </article>
 
           <article class="panel security-panel">
-            <div class="panel-heading"><div><h2>Security posture</h2><p>Environment health overview</p></div><span class="live-label"><i></i> DEMO</span></div>
-            <div class="posture-score"><div class="score-ring"><div><strong>94</strong><span>/ 100</span></div></div><div class="score-copy"><strong>Excellent</strong><span>Illustrative preview; no live health check is connected.</span></div></div>
+            <div class="panel-heading"><div><h2>Security posture</h2><p>Live security monitoring is not connected.</p></div><span class="live-label"><i></i> DEMO</span></div>
+            <div class="posture-score"><div class="score-ring"><div><strong>—</strong><span>/ 100</span></div></div><div class="score-copy"><strong>Not evaluated</strong><span>No live security posture endpoint is available.</span></div></div>
             <div class="posture-list">
-              <div><span class="posture-indicator good"></span><span>Biometric engine</span><strong>Not evaluated</strong></div>
-              <div><span class="posture-indicator good"></span><span>Risk monitoring</span><strong>Not connected</strong></div>
-              <div><span class="posture-indicator warning"></span><span>Pending approvals</span><strong>03</strong></div>
+              <div><span class="posture-indicator warning"></span><span>Biometric engine</span><strong>Not evaluated</strong></div>
+              <div><span class="posture-indicator warning"></span><span>Risk monitoring</span><strong>Not implemented</strong></div>
+              <div><span class="posture-indicator warning"></span><span>Pending approvals</span><strong>Not implemented</strong></div>
               <div><span class="posture-indicator good"></span><span>Audit logging</span><strong>API metadata only</strong></div>
             </div>
           </article>
@@ -156,36 +156,28 @@
         <section class="bottom-grid">
           <article class="panel events-panel">
             <div class="panel-heading">
-              <div><h2>Recent verification events</h2><p>Illustrative sample events — not live API records</p></div>
+              <div><h2>Recent verification events</h2><p>Live verification history endpoint is not implemented.</p></div>
               <button class="text-button" id="viewAllEvents">View all events <span>→</span></button>
             </div>
             <div class="table-toolbar"><div class="search-box"><span>⌕</span><input id="eventSearch" type="search" placeholder="Search identity or event..." aria-label="Search verification events"></div><button class="filter-button" id="filterButton">☷ <span>Filter</span></button></div>
             <div class="table-scroll">
               <table class="events-table">
                 <thead><tr><th>IDENTITY</th><th>METHOD</th><th>RESULT</th><th>RISK</th><th>TIME</th></tr></thead>
-                <tbody id="eventRows">
-                  <tr><td><div class="identity-cell"><span class="table-avatar avatar-blue">OM</span><span><strong>Omar Mahmoud</strong><small>ID-00842</small></span></div></td><td><span class="method-tag">Face + Voice</span></td><td><span class="result success">● Verified</span></td><td><span class="risk-low">Low</span></td><td>Just now</td></tr>
-                  <tr><td><div class="identity-cell"><span class="table-avatar avatar-purple">SA</span><span><strong>Salma Adel</strong><small>ID-00841</small></span></div></td><td><span class="method-tag">Face</span></td><td><span class="result success">● Verified</span></td><td><span class="risk-low">Low</span></td><td>4 min ago</td></tr>
-                  <tr><td><div class="identity-cell"><span class="table-avatar avatar-orange">YK</span><span><strong>Youssef Khaled</strong><small>ID-00840</small></span></div></td><td><span class="method-tag">Voice</span></td><td><span class="result failed">● Rejected</span></td><td><span class="risk-high">High</span></td><td>12 min ago</td></tr>
-                  <tr><td><div class="identity-cell"><span class="table-avatar avatar-green">MN</span><span><strong>Mariam Nabil</strong><small>ID-00839</small></span></div></td><td><span class="method-tag">Face + Voice + FP</span></td><td><span class="result success">● Verified</span></td><td><span class="risk-low">Low</span></td><td>19 min ago</td></tr>
-                  <tr><td><div class="identity-cell"><span class="table-avatar avatar-pink">AH</span><span><strong>Ahmed Hassan</strong><small>ID-00838</small></span></div></td><td><span class="method-tag">Face</span></td><td><span class="result review">● Review</span></td><td><span class="risk-medium">Medium</span></td><td>31 min ago</td></tr>
-                </tbody>
+                <tbody id="eventRows"></tbody>
               </table>
               <div class="empty-state" id="emptyState" hidden>No matching events found.</div>
             </div>
-            <div class="table-footer"><span>Showing <strong id="visibleCount">5</strong> of 856 events</span><button class="pagination-button" disabled>←</button><button class="pagination-button current-page">1</button><button class="pagination-button">2</button><button class="pagination-button">3</button><button class="pagination-button">→</button></div>
+            <div class="table-footer"><span>No live verification history is available.</span></div>
           </article>
 
           <article class="panel alerts-panel">
-            <div class="panel-heading"><div><h2>Attention required</h2><p>Items that may need your action</p></div><span class="alert-count">3</span></div>
-            <div class="alert-item"><span class="alert-symbol alert-red">!</span><div><strong>Repeated failed attempts</strong><p>3 failed voice checks for ID-00840</p><small>12 minutes ago</small></div><button aria-label="Open alert">→</button></div>
-            <div class="alert-item"><span class="alert-symbol alert-yellow">⌛</span><div><strong>Approval pending</strong><p>Manual access override request</p><small>24 minutes ago</small></div><button aria-label="Open alert">→</button></div>
-            <div class="alert-item"><span class="alert-symbol alert-blue">↗</span><div><strong>Unusual access pattern</strong><p>New device detected for ID-00791</p><small>1 hour ago</small></div><button aria-label="Open alert">→</button></div>
-            <button class="all-alerts-button" id="allAlerts">Open security center <span>→</span></button>
+            <div class="panel-heading"><div><h2>Attention required</h2><p>Live security alert feed is not implemented.</p></div><span class="alert-count">—</span></div>
+            <div class="empty-state">No live security alerts are available.</div>
+            <button class="all-alerts-button" id="allAlerts">Security center <span>→</span></button>
           </article>
         </section>
 
-        <footer class="page-footer"><span>© 2026 BioGuard X. Intelligent identity security.</span><span><i></i> Illustrative dashboard · live analytics not connected</span></footer>
+        <footer class="page-footer"><span>© 2026 BioGuard X. Research and development prototype.</span><span><i></i> Live analytics not implemented</span></footer>
         </div>
         <section id="moduleView" class="module-view" hidden></section>
       </div>
