@@ -1,8 +1,28 @@
-# Test report
-Executed in the build sandbox with a minimal pytest-compatible runner (pytest/librosa/streamlit were not installable there):
-`tests/test_core_security_automation.py` -> **24 passed, 0 failed** (DB, enrolment/consent/deletion, permissions, role mismatch, commands blocked without identity,
-risk, agent detection/approval, event triggers, dedupe, approval/reject/expiry, allow-list, retry/non-retry, recovery/escalation, scheduler, backup, reports, high-risk workflow).
-Security scenario evaluation (`python -m scripts.run_security_eval`, 5 positive + 4 benign scenarios written by the developer, so it checks consistency, not real-world accuracy):
-detection 1.0, false positives 0.0, avg analysis 7.2 ms, automation success 0.778 (rest = workflows waiting for approval), approvals decided 0.4.
-NOT executed: `tests/test_features.py` (needs cv2 Haar + librosa), biometric training/evaluation, Streamlit app, webcam/microphone (no hardware), Ollama.
-Run these on your machine and append the results here.
+# Test report — verified CI results
+
+## Latest completed code-validation run
+
+- Workflow: [BioGuard API tests, run #24](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43115087005)
+- Commit tested: `bec7bbef27e80ee38c932ce7a8f2027e3d04fe10`
+- Result: **PASS**
+- Pytest: **14 passed, 0 failed**
+- Python compilation: PASS
+- Vanilla JavaScript syntax (`frontend/app.js`, `frontend/modules.js`): PASS
+- Dependency consistency (`pip check`): PASS
+- Vercel deployment status for this commit: PASS
+
+The 14 automated tests cover API health/calibration gating, authentication rejection, encrypted template round-trip, identity reference validation, enrollment/verification safety gate, malformed email and consent validation, voice/fingerprint feature extraction, missing-sample handling, face HOG/LBP extraction, voice MFCC/ZCR/RMS extraction, pair balancing, EER/metric calculation, and a synthetic end-to-end training smoke test that writes a model bundle and metrics report.
+
+## Warning
+
+One upstream warning remains: Starlette currently deprecates using `httpx` with its `TestClient`. It does not fail the tests. The deprecated FastAPI `on_event` lifecycle and scikit-learn SVM probability warnings were removed in later commits.
+
+## Not validated by CI
+
+- Real-data training or biometric accuracy: no consented dataset is included.
+- Real-world FAR/FRR/EER or security performance: synthetic test data is only a software smoke test.
+- Browser visual/interaction testing on the owner's machine.
+- Webcam/microphone hardware testing.
+- Fingerprint trained classifier, liveness, spoof resistance, or API integration with the trained model bundle.
+
+Do not present synthetic test results as biometric performance. See [TASK_2_ACCEPTANCE.md](TASK_2_ACCEPTANCE.md) for remaining assignment blockers.
