@@ -2,69 +2,55 @@
 
 ## Implemented research pipeline
 
-The training pipeline is implemented in `src/bioguard_ml.py` and uses traditional machine learning only. It does not use deep-learning models.
+The training pipeline in `src/bioguard_ml.py` uses traditional machine learning only; no deep-learning identity model is used.
 
-- Face features: HOG descriptor and an 8-neighbour LBP histogram, evaluated separately and together.
-- Voice features: 13 MFCC coefficients (mean and standard deviation), plus zero-crossing rate (ZCR) and root-mean-square energy (RMS) statistics.
-- Verification formulation: genuine (same participant) and impostor (different participant) sample pairs, represented by absolute feature differences.
-- Classifiers: RBF SVM and Random Forest for each face feature configuration, voice, and early-fusion features.
-- Early fusion: concatenated face and voice feature vectors before pairwise classification.
-- Hierarchical verification: face-first SVM; use the voice SVM when the face score falls inside a validation-derived uncertainty band.
-- Calibration/evaluation: choose the operating threshold on the validation split using the equal-error-rate (EER) point; report test accuracy, precision, recall, F1, FAR, FRR, EER, ROC-AUC, and confusion matrix.
+- Face features: HOG descriptor and 8-neighbour LBP histogram, evaluated separately and together.
+- Voice features: 13 MFCC coefficients (mean and standard deviation), plus ZCR and RMS statistics.
+- Fingerprint: optional non-live 24-dimensional Gabor texture descriptor.
+- Pair verification: genuine (same participant) and impostor (different participant) pairs represented by absolute feature differences.
+- Classifiers: calibrated RBF SVM and Random Forest.
+- Fusion: face+voice early feature fusion; optional face+voice+fingerprint fusion when every paired sample has a matching fingerprint file.
+- Hierarchical verification: face-first SVM; use voice SVM when the face score is inside a validation-derived uncertainty band.
+- Calibration/evaluation: select thresholds on validation EER; report test accuracy, precision, recall, F1, FAR, FRR, EER, ROC-AUC, and confusion matrix.
 
 ## Dataset layout
 
-The loader expects at least two participants and at least 10 matched face/voice samples per participant:
+At least two participants and 10 matched face/voice samples per participant are required. Face and voice filenames must share a stem. For optional three-modality training, every paired face/voice stem must also have a fingerprint image with the same stem.
 
 ```text
 datasets/custom/
   participant_001/
-    face/
-      sample_001.jpg
-      sample_002.jpg
-    voice/
-      sample_001.wav
-      sample_002.wav
+    face/sample_001.jpg
+    voice/sample_001.wav
+    fingerprint/sample_001.png  # optional; same stem
   participant_002/
     face/
     voice/
+    fingerprint/                 # optional
 ```
 
-A face image and its corresponding voice recording must share the same filename stem (for example, `sample_001.jpg` and `sample_001.wav`). This is how the loader pairs the two modalities for early fusion. Supported images: JPG, JPEG, PNG, BMP. Supported audio: WAV, FLAC, OGG.
+Supported images: JPG, JPEG, PNG, BMP. Supported audio: WAV, FLAC, OGG. Only use biometric data collected with informed consent. Do not add real biometric samples to Git.
 
-Each participant's matched sample stems are deterministically shuffled and split into 60% train, 20% validation, and 20% test. Files are disjoint across splits. This is a sample-level split, not a session-aware split: collect independent capture sessions and avoid near-duplicate adjacent frames across splits. At least 10 samples are required so each split can contain genuine pairs.
-
-Only use data collected with informed consent. Do not add real biometric samples to Git.
+Each participant's matched sample stems are deterministically shuffled and split 60/20/20 into train/validation/test. Files are disjoint across splits, but the split is sample-level, not session-aware or participant-independent. Use distinct capture sessions and avoid near-duplicate adjacent frames across splits. At least 10 matched samples are required so each split can contain genuine pairs.
 
 ## Run
 
-From the repository root with the root requirements installed:
-
 ```powershell
 python -m pip install -r requirements.txt
+python -m pytest tests -q
 python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports
 ```
 
-The command writes:
-- `reports/bioguard_traditional_ml.joblib` — trained research models and validation thresholds.
-- `reports/metrics.json` — test metrics and confusion matrices, grouped by feature/model and hierarchical flow.
+Outputs:
+- `reports/bioguard_traditional_ml.joblib`: versioned trained models and validation thresholds.
+- `reports/metrics.json`: test metrics and confusion matrices by feature/model and hierarchical flow.
+
+The API can load the bundle using `BIOGUARD_MODEL_PATH`. The API and training extractors are tested for feature parity. The API returns experimental model results only; its policy decision remains pending.
 
 ## Metric interpretation
 
-- Confusion matrix order is `[[TN, FP], [FN, TP]]`: impostors correctly rejected, impostors incorrectly accepted, genuine users incorrectly rejected, and genuine users correctly matched.
-- Accuracy is the fraction of all pair trials classified correctly.
-- Precision measures how many predicted genuine matches were actually genuine; recall measures how many genuine pairs were detected.
-- F1 is the harmonic mean of precision and recall.
-- FAR (False Acceptance Rate) is `FP / (FP + TN)`; FRR (False Rejection Rate) is `FN / (FN + TP)`.
-- EER (Equal Error Rate) is the point where FAR and FRR are closest; the operating threshold is selected from the validation split, not the test split.
-- ROC-AUC measures score ranking across thresholds. Compare all feature/model rows on the same held-out test split; do not compare results from different datasets or splits.
+Confusion matrix order is `[[TN, FP], [FN, TP]]`. FAR = FP/(FP+TN); FRR = FN/(FN+TP). EER is where FAR and FRR are closest; the operating threshold is selected on validation, not test. Compare model rows only on the same held-out split.
 
-The dataset is not included in this repository. Consequently, no real-data training run or biometric performance result is claimed here. CI uses synthetic signals to test feature extraction, pair construction, and metric calculations; it does not establish identity-verification accuracy or spoof resistance.
+## Limitations
 
-## Scope and limitations
-
-- The training pipeline is a new implementation because neither branch contained the original `src/`, `app/`, or `scripts/` research modules described by earlier documentation.
-- The current FastAPI API is still an isolated experimental adapter. It has not yet loaded this trained model bundle; its verification endpoint deliberately returns `not_evaluated` / `pending`.
-- Fingerprint is not yet part of this trained pipeline. The API's Gabor fingerprint descriptor is diagnostic only.
-- Face detection/alignment, liveness detection, session-aware splitting, independent external evaluation, and production access-control integration remain unimplemented.
-- These models are for coursework/research demonstrations, not real-world access control.
+No consented biometric dataset is included, so no real-data training run or performance result is claimed. CI uses synthetic signals to test software behavior only. Session-aware/participant-independent evaluation, face detection/alignment, liveness/spoof resistance, independent external evaluation, and production access-control integration remain incomplete. The system is for coursework/research demonstration, not real-world access control.
