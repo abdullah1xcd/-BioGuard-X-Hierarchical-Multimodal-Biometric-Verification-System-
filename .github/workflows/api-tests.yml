@@ -19,6 +19,16 @@ jobs:
           python-version: "3.12"
           cache: "pip"
           cache-dependency-path: requirements-api.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify root npm install
+        run: npm ci --ignore-scripts
+      - name: Verify frontend-root npm install
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+      - name: Verify static frontend build scripts
+        run: npm run build && npm --prefix frontend run build
       - name: Install API dependencies
         run: python -m pip install -r requirements-api.txt
       - name: Check Python compilation
