@@ -56,6 +56,35 @@ function setPage(page) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+async function refreshApiHealth() {
+  const label = document.querySelector('.system-status small');
+  const pulse = document.querySelector('.system-status .status-pulse');
+  if (!label || !pulse) return;
+  if (!API_BASE_URL) {
+    label.textContent = 'API URL not configured';
+    pulse.style.backgroundColor = '#e6a34a';
+    return;
+  }
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(API_BASE_URL + '/api/v1/health', { method: 'GET', signal: controller.signal });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const health = await response.json();
+    if (health.status === 'ready') {
+      label.textContent = 'API connected · ' + health.verification_mode.replace(/_/g, ' ');
+      pulse.style.backgroundColor = '#29d5c2';
+    } else {
+      label.textContent = 'API connected · configuration required';
+      pulse.style.backgroundColor = '#e6a34a';
+    }
+  } catch (_) {
+    label.textContent = 'API unreachable · check backend and CORS';
+    pulse.style.backgroundColor = '#e06464';
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 function greeting() {
   const hour = new Date().getHours();
   return hour < 12 ? "Good morning, Admin ✳" : hour < 18 ? "Good afternoon, Admin ✳" : "Good evening, Admin ✳";
@@ -289,7 +318,7 @@ function escapeHtml(value) {
 navItems.forEach((item) => item.addEventListener("click", () => setPage(item.dataset.page)));
 
 document.getElementById("newVerification").addEventListener("click", () => setPage("verification"));
-document.getElementById("notificationButton").addEventListener("click", () => showToast("You have 3 illustrative security items requiring attention."));
+document.getElementById("notificationButton").addEventListener("click", () => showToast("Live notifications are not implemented yet."));
 document.getElementById("helpButton").addEventListener("click", () => showToast("BioGuard X help center — documentation coming soon."));
 document.getElementById("mobileMenu").addEventListener("click", () => document.getElementById("sidebar").classList.toggle("open"));
 
@@ -297,3 +326,4 @@ const today = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short
 document.getElementById("todayLabel").textContent = today;
 pageTitle.textContent = greeting();
 bindOverviewEvents();
+refreshApiHealth();
