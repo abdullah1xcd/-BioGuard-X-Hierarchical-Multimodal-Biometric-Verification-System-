@@ -6,7 +6,7 @@ const toast = document.getElementById("toast");
 const overviewView = document.getElementById("overviewView");
 const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
-const API_BASE_URL = window.BIOGUARD_API_BASE || "http://127.0.0.1:8000";
+const API_BASE_URL = window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "");
 let operatorApiToken = "";
 
 const pageCopy = {
@@ -95,7 +95,7 @@ function selectedModalities(prefix) {
 function selectedFiles(prefix, selected) {
   const files = {};
   selected.forEach((kind) => {
-    const input = document.getElementById(prefix + "-" + kind);
+    const input = moduleView.querySelector('[data-upload="' + kind + '"]');
     files[kind] = input && input.files ? input.files[0] : null;
   });
   return files;
@@ -181,8 +181,14 @@ function bindModuleEvents(page) {
 
     const submit = form.querySelector('button[type="submit"]');
     const original = submit.innerHTML;
+    if (!API_BASE_URL) {
+      feedback.hidden = false;
+      feedback.className = "form-feedback feedback-error";
+      feedback.textContent = "The BioGuard API is not configured for this deployed website. Set window.BIOGUARD_API_BASE to your hosted HTTPS API URL before uploading biometric samples.";
+      return;
+    }
     if (!operatorApiToken) {
-      operatorApiToken = window.prompt("Enter the local BioGuard API operator token. It stays in this page's memory only.") || "";
+      operatorApiToken = window.prompt("Enter the BioGuard API operator token. It stays in this page's memory only.") || "";
     }
     if (!operatorApiToken) {
       feedback.hidden = false;
