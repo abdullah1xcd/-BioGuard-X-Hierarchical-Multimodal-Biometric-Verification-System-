@@ -451,11 +451,7 @@ async def verify(
         raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
     except (RuntimeError, KeyError, OSError) as exc:
         raise HTTPException(503, detail={"code": "MODEL_NOT_READY", "message": "The configured model bundle is unavailable or incompatible."}) from exc
-    except (ValueError, sf.LibsndfileError, cv2.error, InvalidToken) as exc:
-        raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
-    except RuntimeError as exc:
-        raise HTTPException(503, detail={"code": "ENCRYPTION_NOT_CONFIGURED", "message": "Secure template access is not configured."}) from exc
-    event_id = audit(actor, "biometric_verification", identity_ref, selected, "not_evaluated", request_id)
+    event_id = audit(actor, "biometric_verification", identity_ref, selected, ("model_result_pending_policy" if experimental_result != "not_evaluated" else "not_evaluated"), request_id)
     return {"request_id": request_id, "verification_id": str(uuid.uuid4()), "outcome": experimental_result,
             "policy_decision": "pending", "reason_code": reason_code,
             "diagnostic_similarity": comparisons,
