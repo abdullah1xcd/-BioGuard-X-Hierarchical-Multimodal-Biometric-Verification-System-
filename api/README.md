@@ -11,6 +11,7 @@ pip install -r requirements-api.txt
 $env:BIOGUARD_API_TOKEN = "replace-with-a-long-random-operator-secret"
 $env:BIOGUARD_ENCRYPTION_KEY = (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 $env:BIOGUARD_CORS_ORIGINS = "http://localhost:5500,http://127.0.0.1:5500"
+$env:BIOGUARD_MODEL_PATH = "reports/bioguard_traditional_ml.joblib"  # set after training
 uvicorn api.main:app --reload
 ```
 
@@ -22,8 +23,9 @@ OpenAPI docs: http://127.0.0.1:8000/docs
 
 - Authenticated, consent-gated enrollment accepts face, voice and/or fingerprint samples.
 - Upload sizes and actual decodability are checked server-side.
-- Baseline handcrafted features are extracted (HOG image descriptor, MFCC-style audio statistics, Gabor fingerprint texture statistics) and encrypted before SQLite storage.
-- Verification computes diagnostic similarity values but always returns `outcome=not_evaluated` and `policy_decision=pending`. No access decision is possible until the feature pipeline is replaced or validated against the intended dataset, operating thresholds are calibrated, and independent evaluation is completed.
+- Face and voice enrollment features use the same HOG+LBP and MFCC+ZCR+RMS extractors as the traditional-ML training pipeline; feature parity is covered by tests. Fingerprint currently uses a Gabor texture descriptor only.
+- Set `BIOGUARD_MODEL_PATH` to `reports/bioguard_traditional_ml.joblib` after running the training pipeline. The API loads the versioned bundle and can return experimental `match` / `no_match` results for face-only, voice-only, early-fusion scoring, and face-first hierarchical routing when the corresponding trained models are present.
+- `policy_decision` deliberately remains `pending` for every result. A model output is not an authorization decision. The bundle must be trained on consented representative data and independently reviewed before any operational use.
 - Audit records contain operation metadata, not raw samples or feature vectors.
 - Raw uploads are processed in memory and are not persisted.
 
