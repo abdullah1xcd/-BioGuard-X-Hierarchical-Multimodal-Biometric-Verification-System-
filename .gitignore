@@ -8,3 +8,16 @@ datasets/custom/*
 datasets/public/*
 reports/generated/
 !datasets/custom/.gitkeep
+
+# Secrets and local databases
+.env
+.env.*
+!.env.example
+*.sqlite3
+*.db
+*firebase-adminsdk*.json
+service-account*.json
+
+# Generated model artifacts and reports
+reports/*.joblib
+reports/metrics.json
