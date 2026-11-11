@@ -18,7 +18,7 @@ def test_face_extractor_produces_hog_and_lbp(tmp_path):
     path = tmp_path / "face.png"
     assert cv2.imwrite(str(path), image)
     features = face_features(path)
-    assert features["hog"].shape == (1764,)
+    assert features["hog"].shape == (8100,)
     assert features["lbp"].shape == (256,)
     assert np.isfinite(features["hog"]).all()
     assert np.isfinite(features["lbp"]).all()
