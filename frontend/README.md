@@ -24,7 +24,7 @@ cd frontend
 py -m http.server 5500
 ```
 
-Open `http://localhost:5500`. The first enrollment/verification request asks for the API operator token. It remains in page memory only and is not persisted. The API base defaults to `http://127.0.0.1:8000`; set `window.BIOGUARD_API_BASE` before loading `app.js` if your local API uses another address.
+Open `http://localhost:5500`. The first enrollment/verification request asks for the API operator token. It remains in page memory only and is not persisted. The API base defaults to `http://127.0.0.1:8000` on localhost. For a deployed frontend, edit `config.js` and set `window.BIOGUARD_API_BASE` to the public HTTPS URL of the separately hosted FastAPI service. Do not put the operator token, Firebase Admin credentials, database password, or encryption key in this file.
 
 Keep the encryption key stable between restarts; otherwise previously stored encrypted templates cannot be read. Never commit either secret. The token flow is for local coursework development only, not production deployment.
 
@@ -44,3 +44,11 @@ The original Python research modules described by older documentation were absen
 Training/API feature dimensions are aligned and tested: HOG+LBP face, MFCC+ZCR+RMS voice, and Gabor fingerprint. The API can load the versioned joblib bundle, perform face-only or voice-only comparison, face+voice hierarchical verification with early-fusion score reporting, fingerprint-only comparison, and optional three-modality fusion when trained models exist. It never grants or denies access.
 
 See [API README](../api/README.md) and [API integration contract](./API_INTEGRATION_CONTRACT.md).
+
+## Vercel deployment
+
+- Import this repository and select branch `frontend/vanilla-js-redesign`.
+- For Root Directory `.` use the root `vercel.json` and root `package.json`; for Root Directory `frontend` use `frontend/vercel.json` and `frontend/package.json`.
+- The frontend is static Vanilla JS. No runtime npm dependencies are required; `npm ci` is supported and the build script is a no-op.
+- Set the API URL in `config.js` before deploying. Vercel build-time environment variables are not automatically available to a static browser page.
+- Deploy FastAPI separately with HTTPS and set `BIOGUARD_CORS_ORIGINS` to the exact Vercel origin. Configure `BIOGUARD_API_TOKEN`, `BIOGUARD_ENCRYPTION_KEY`, and persistent database/model storage only on the backend host.
