@@ -16,7 +16,7 @@ import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -38,10 +38,17 @@ ALLOWED = {"face", "voice", "fingerprint"}
 IDENTITY_RE = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
 bearer = HTTPBearer(auto_error=False)
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="BioGuard X API",
     version="0.1.0",
     description="Experimental API. Verification decisions are disabled pending calibration.",
+    lifespan=lifespan,
 )
 origins = [x.strip() for x in os.getenv("BIOGUARD_CORS_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500").split(",") if x.strip()]
 app.add_middleware(
@@ -102,11 +109,6 @@ def init_db() -> None:
         """)
 
 
-@app.on_event("startup")
-def startup() -> None:
-    init_db()
-
-
 def require_operator(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]) -> str:
     expected = os.getenv("BIOGUARD_API_TOKEN", "")
     if not expected:
@@ -156,6 +158,8 @@ def image_array(data: bytes) -> np.ndarray:
     image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
     if image is None or image.size == 0:
         raise ValueError("Image cannot be decoded")
+    if image.size > 25_000_000:
+        raise ValueError("Image dimensions exceed the processing limit")
     if min(image.shape) < 64:
         raise ValueError("Image resolution is too small")
     return image
@@ -184,6 +188,8 @@ def audio_features(data: bytes) -> np.ndarray:
     audio, sample_rate = sf.read(io.BytesIO(data), dtype="float32", always_2d=True)
     if audio.size == 0 or sample_rate < 8000:
         raise ValueError("Audio is empty or sample rate is unsupported")
+    if not np.isfinite(audio).all():
+        raise ValueError("Audio contains non-finite samples")
     signal = audio.mean(axis=1)
     if len(signal) < sample_rate // 2:
         raise ValueError("Voice sample must be at least 0.5 seconds")
@@ -278,8 +284,16 @@ async def enroll(
     identity_ref = raw_ref.strip()
     if not 2 <= len(name) <= 100 or not IDENTITY_RE.fullmatch(identity_ref):
         raise HTTPException(422, detail={"code": "INVALID_PROFILE", "message": "Provide a valid full name and identity reference."})
-    if consent_data.get("granted") is not True or not str(consent_data.get("policy_version", "")).strip():
-        raise HTTPException(403, detail={"code": "CONSENT_REQUIRED", "message": "Explicit consent and a policy version are required."})
+    policy_version = consent_data.get("policy_version")
+    if (consent_data.get("granted") is not True or not isinstance(policy_version, str)
+            or not 1 <= len(policy_version.strip()) <= 40):
+        raise HTTPException(403, detail={"code": "CONSENT_REQUIRED", "message": "Explicit consent and a valid policy version are required."})
+    email = profile_data.get("email")
+    if email is not None:
+        if (not isinstance(email, str) or len(email.strip()) > 254
+                or not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", email.strip())):
+            raise HTTPException(422, detail={"code": "INVALID_EMAIL", "message": "Provide a valid email address or leave it empty."})
+        email = email.strip().lower()
     selected = parse_modalities(modalities)
     supplied = {"face": face_sample, "voice": voice_sample, "fingerprint": fingerprint_sample}
     if any(supplied[k] is None for k in selected) or any(supplied[k] is not None for k in ALLOWED - set(selected)):
@@ -299,7 +313,7 @@ async def enroll(
         with db() as conn:
             conn.execute(
                 "INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)",
-                (identity_ref, name, profile_data.get("email"), utc_now(), str(consent_data["policy_version"])),
+                (identity_ref, name, email, utc_now(), policy_version.strip()),
             )
             for kind, vector in extracted.items():
                 encrypted = get_fernet().encrypt(vector_bytes(vector))
@@ -329,8 +343,10 @@ async def verify(
         auth_data = json.loads(authorization)
     except json.JSONDecodeError as exc:
         raise HTTPException(400, detail={"code": "INVALID_AUTHORIZATION", "message": "Authorization must be valid JSON."}) from exc
-    if not isinstance(auth_data, dict) or auth_data.get("authorized") is not True or not str(auth_data.get("purpose", "")).strip():
-        raise HTTPException(403, detail={"code": "AUTHORIZATION_REQUIRED", "message": "A documented, authorized verification purpose is required."})
+    purpose = auth_data.get("purpose") if isinstance(auth_data, dict) else None
+    if (not isinstance(auth_data, dict) or auth_data.get("authorized") is not True
+            or not isinstance(purpose, str) or not 3 <= len(purpose.strip()) <= 200):
+        raise HTTPException(403, detail={"code": "AUTHORIZATION_REQUIRED", "message": "A documented verification purpose (3–200 characters) is required."})
     selected = parse_modalities(modalities)
     supplied = {"face": face_sample, "voice": voice_sample, "fingerprint": fingerprint_sample}
     if any(supplied[k] is None for k in selected) or any(supplied[k] is not None for k in ALLOWED - set(selected)):
@@ -344,10 +360,11 @@ async def verify(
     try:
         comparisons = {}
         for kind in selected:
+            raw = await read_sample(supplied[kind], kind)
             if kind not in stored:
                 comparisons[kind] = "missing_enrollment_template"
+                del raw
                 continue
-            raw = await read_sample(supplied[kind], kind)
             candidate = extract(raw, kind)
             reference = load_vector(stored[kind])
             # Similarity is diagnostic only; no threshold is approved for access decisions.
