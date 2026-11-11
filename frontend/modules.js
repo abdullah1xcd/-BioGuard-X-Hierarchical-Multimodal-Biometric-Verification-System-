@@ -1,9 +1,9 @@
 (() => {
   function modalities(prefix) {
     return [
-      ["face","Face recognition","HOG / LBP feature pipeline","◉",true],
-      ["voice","Voice verification","MFCC · ZCR · RMS features","⌁",false],
-      ["fingerprint","Fingerprint","Gabor + HOG / LBP","▦",false]
+      ["face","Face recognition","HOG descriptor baseline","◉",true],
+      ["voice","Voice verification","MFCC-style spectral baseline","⌁",false],
+      ["fingerprint","Fingerprint","Gabor texture baseline","▦",false]
     ].map(function (m) {
       return '<label class="modality-card" for="' + prefix + '-' + m[0] + '"><input id="' + prefix + '-' + m[0] + '" name="' + prefix + '-modality" type="checkbox" value="' + m[0] + '"' + (m[4] ? ' checked' : '') + '><span class="modality-check"></span><span class="modality-icon">' + m[3] + '</span><span class="modality-copy"><strong>' + m[1] + '</strong><small>' + m[2] + '</small></span>' + (m[0] === "fingerprint" ? '<span class="optional-tag">OPTIONAL</span>' : '') + '</label>';
     }).join("");
