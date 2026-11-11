@@ -85,3 +85,91 @@ def test_enrollment_and_verification_never_make_access_decision(monkeypatch, tmp
     assert verified.json()["outcome"] == "not_evaluated"
     assert verified.json()["policy_decision"] == "pending"
     assert verified.json()["reason_code"] == "CALIBRATION_REQUIRED"
+
+
+
+def test_email_validation_rejects_malformed_values(monkeypatch, tmp_path):
+    import json
+
+    configure(monkeypatch, tmp_path)
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/v1/identities/enroll",
+            headers=headers,
+            data={
+                "profile": json.dumps({
+                    "full_name": "Test Person",
+                    "identity_ref": "BG-EMAIL-01",
+                    "email": "not-an-email",
+                }),
+                "modalities": json.dumps(["face"]),
+                "consent": json.dumps({"granted": True, "policy_version": "test-v1"}),
+            },
+        )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "INVALID_EMAIL"
+
+
+def test_consent_policy_version_must_be_a_string(monkeypatch, tmp_path):
+    import json
+
+    configure(monkeypatch, tmp_path)
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/v1/identities/enroll",
+            headers=headers,
+            data={
+                "profile": json.dumps({"full_name": "Test Person", "identity_ref": "BG-CONSENT-01"}),
+                "modalities": json.dumps(["face"]),
+                "consent": json.dumps({"granted": True, "policy_version": ["unexpected"]}),
+            },
+        )
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "CONSENT_REQUIRED"
+
+
+def test_audio_and_fingerprint_extractors_return_finite_features():
+    import io
+    import soundfile as sf
+
+    fingerprint = np.random.default_rng(11).integers(0, 256, (160, 160), dtype=np.uint8)
+    ok, encoded = main.cv2.imencode(".png", fingerprint)
+    assert ok
+    fingerprint_vector = main.image_features(encoded.tobytes(), "fingerprint")
+    assert fingerprint_vector.shape == (24,)
+    assert np.isfinite(fingerprint_vector).all()
+
+    sample_rate = 16000
+    time = np.arange(sample_rate, dtype=np.float32) / sample_rate
+    signal = (0.2 * np.sin(2 * np.pi * 220 * time)).astype(np.float32)
+    audio_buffer = io.BytesIO()
+    sf.write(audio_buffer, signal, sample_rate, format="WAV")
+    voice_vector = main.audio_features(audio_buffer.getvalue())
+    assert voice_vector.shape == (26,)
+    assert np.isfinite(voice_vector).all()
+
+
+def test_verification_requires_uploaded_sample_even_without_enrollment_template(monkeypatch, tmp_path):
+    import json
+
+    configure(monkeypatch, tmp_path)
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)",
+            ("BG-NO-VOICE", "Test Person", None, main.utc_now(), "test-v1"),
+        )
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/v1/verification/multimodal",
+            headers=headers,
+            data={
+                "claimed_identity_ref": "BG-NO-VOICE",
+                "modalities": json.dumps(["voice"]),
+                "authorization": json.dumps({"authorized": True, "purpose": "Test missing sample"}),
+            },
+        )
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "MISSING_SAMPLE"
