@@ -57,6 +57,23 @@ def face_features(path: str | Path) -> dict[str, np.ndarray]:
     return {"hog": hog_vector, "lbp": histogram}
 
 
+def fingerprint_features(path: str | Path) -> np.ndarray:
+    """Non-live fingerprint texture baseline: 8 Gabor orientations x 3 statistics."""
+    raw = np.fromfile(str(path), dtype=np.uint8)
+    image = cv2.imdecode(raw, cv2.IMREAD_GRAYSCALE)
+    if image is None or image.size == 0 or min(image.shape) < 64 or image.size > 25_000_000:
+        raise ValueError(f"Invalid fingerprint image: {path}")
+    image = cv2.equalizeHist(cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA))
+    parts = []
+    for theta in np.linspace(0, np.pi, 8, endpoint=False):
+        kernel = cv2.getGaborKernel((21, 21), 4.0, float(theta), 10.0, 0.5, 0, ktype=cv2.CV_32F)
+        response = cv2.filter2D(image.astype(np.float32) / 255.0, cv2.CV_32F, kernel)
+        parts.extend((float(response.mean()), float(response.std()), float(np.mean(np.abs(response)))))
+    result = np.asarray(parts, dtype=np.float32)
+    if not np.isfinite(result).all():
+        raise ValueError(f"Fingerprint features are not finite: {path}")
+    return result
+
 def voice_features(path: str | Path) -> np.ndarray:
     audio, sample_rate = sf.read(str(path), dtype="float32", always_2d=True)
     if audio.size == 0 or sample_rate < 8000 or not np.isfinite(audio).all():
@@ -128,20 +145,25 @@ def load_paired_dataset(root: str | Path, seed: int = 42) -> dict[str, list[dict
         face_dir, voice_dir = participant / "face", participant / "voice"
         faces = {p.stem: p for p in face_dir.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS} if face_dir.exists() else {}
         voices = {p.stem: p for p in voice_dir.iterdir() if p.is_file() and p.suffix.lower() in AUDIO_EXTENSIONS} if voice_dir.exists() else {}
+        fingerprint_dir = participant / "fingerprint"
+        fingerprints = {p.stem: p for p in fingerprint_dir.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS} if fingerprint_dir.exists() else {}
         common = sorted(set(faces) & set(voices))
         assigned = _split_stems(common, seed)
         for split_name, stems in assigned.items():
             for stem in sorted(stems):
                 face = face_features(faces[stem])
                 voice = voice_features(voices[stem])
-                splits[split_name].append({
+                record = {
                     "identity": participant.name,
                     "sample_id": stem,
                     "hog": face["hog"],
                     "lbp": face["lbp"],
                     "face": np.concatenate((face["hog"], face["lbp"])),
                     "voice": voice,
-                })
+                }
+                if stem in fingerprints:
+                    record["fingerprint"] = fingerprint_features(fingerprints[stem])
+                splits[split_name].append(record)
     for name, records in splits.items():
         if len({r["identity"] for r in records}) < 2:
             raise ValueError(f"The {name} split needs samples from at least two participants.")
@@ -213,13 +235,18 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
         "models": {},
         "hierarchical": {},
     }
-    keys = ("hog", "lbp", "face", "voice", "early_fusion")
+    keys = ["hog", "lbp", "face", "voice", "early_fusion"]
+    all_records = [record for split_records in splits.values() for record in split_records]
+    fingerprint_complete = bool(all_records) and all("fingerprint" in record for record in all_records)
+    if fingerprint_complete:
+        keys.extend(["fingerprint", "multimodal_fusion"])
     for key in keys:
         train_records, val_records, test_records = (splits[s] for s in ("train", "validation", "test"))
-        if key == "early_fusion":
-            for records in (train_records, val_records, test_records):
-                for record in records:
-                    record["early_fusion"] = np.concatenate((record["face"], record["voice"]))
+        for records in (train_records, val_records, test_records):
+            for record in records:
+                record["early_fusion"] = np.concatenate((record["face"], record["voice"]))
+                if fingerprint_complete:
+                    record["multimodal_fusion"] = np.concatenate((record["face"], record["voice"], record["fingerprint"]))
         x_train, y_train, _ = make_pairs(train_records, key)
         x_val, y_val, _ = make_pairs(val_records, key)
         x_test, y_test, _ = make_pairs(test_records, key)
