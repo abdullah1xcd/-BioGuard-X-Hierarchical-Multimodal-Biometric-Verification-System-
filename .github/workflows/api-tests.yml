@@ -21,10 +21,14 @@ jobs:
           cache-dependency-path: requirements-api.txt
       - name: Install API dependencies
         run: python -m pip install -r requirements-api.txt
+      - name: Check Python compilation
+        run: python -m compileall -q api src scripts tests
       - name: Check Vanilla JavaScript syntax
         run: node --check frontend/app.js && node --check frontend/modules.js
-      - name: Run API tests
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Run API and ML tests
         env:
           BIOGUARD_API_TOKEN: ci-test-token
           BIOGUARD_ENCRYPTION_KEY: ${{ secrets.BIOGUARD_CI_ENCRYPTION_KEY }}
-        run: python -m pytest tests/test_api.py tests/test_ml_pipeline.py -q
+        run: python -m pytest tests -q
