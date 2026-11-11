@@ -103,10 +103,16 @@ function validateFiles(files, errorElement) {
   const limits = { face: 10, voice: 20, fingerprint: 10 };
   const missing = Object.keys(files).filter((kind) => !files[kind]);
   const oversized = Object.keys(files).filter((kind) => files[kind] && files[kind].size > limits[kind] * 1024 * 1024);
-  if (missing.length || oversized.length) {
+  const wrongType = Object.keys(files).filter((kind) => {
+    if (!files[kind]) return false;
+    const type = files[kind].type || "";
+    return kind === "voice" ? !type.startsWith("audio/") : !type.startsWith("image/");
+  });
+  if (missing.length || oversized.length || wrongType.length) {
     const parts = [];
     if (missing.length) parts.push("Add a sample for: " + missing.join(", ") + ".");
     if (oversized.length) parts.push("File exceeds the size limit: " + oversized.join(", ") + ".");
+    if (wrongType.length) parts.push("Unsupported file type for: " + wrongType.join(", ") + ".");
     errorElement.textContent = parts.join(" ");
     return false;
   }
