@@ -23,11 +23,11 @@
 
 ## Latest CI
 
-[GitHub Actions run #65](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43116901213) — PASS: 17 passed, 0 failed; Python compilation, Vanilla JS syntax, and dependency checks passed. One non-blocking Starlette/httpx deprecation warning remains.
+[GitHub Actions run #74](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43117259220) — PASS: 18 passed, 0 failed; Python compilation, Vanilla JS syntax, and dependency checks passed. One non-blocking Starlette/httpx deprecation warning remains.
 
 ## Latest deployment
 
-[Vercel deployment](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system/H3G1wMJBZxwcj7oem45PBbRHSoLi) — PASS.
+[Vercel deployment](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system/H3G1wMJBZxwcj7oem45PBbRHSoLi) — PASS for the frontend code revision. A subsequent deployment attempt was canceled from the Vercel dashboard.
 
 ## Required owner-side work
 
