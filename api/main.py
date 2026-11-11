@@ -22,6 +22,7 @@ from typing import Annotated
 
 import cv2
 import numpy as np
+import joblib
 import soundfile as sf
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
@@ -33,6 +34,9 @@ from pydantic import BaseModel, Field
 
 APP_DIR = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("BIOGUARD_DB_PATH", str(APP_DIR / "bioguard.sqlite3")))
+MODEL_PATH = Path(os.getenv("BIOGUARD_MODEL_PATH", str(APP_DIR.parent / "reports" / "bioguard_traditional_ml.joblib")))
+_MODEL_CACHE = None
+_MODEL_CACHE_MTIME = None
 MAX_BYTES = {"face": 10 * 1024 * 1024, "voice": 20 * 1024 * 1024, "fingerprint": 10 * 1024 * 1024}
 ALLOWED = {"face", "voice", "fingerprint"}
 IDENTITY_RE = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
@@ -170,9 +174,17 @@ def image_features(data: bytes, modality: str) -> np.ndarray:
     image = cv2.resize(image, (128, 128), interpolation=cv2.INTER_AREA)
     image = cv2.equalizeHist(image)
     if modality == "face":
-        # Baseline HOG descriptor only; no face detector, alignment, liveness, or trained identity model.
+        # Must remain feature-compatible with src.bioguard_ml.face_features.
         hog = cv2.HOGDescriptor((128, 128), (16, 16), (8, 8), (8, 8), 9)
-        vector = hog.compute(image).reshape(-1)
+        hog_vector = hog.compute(image).reshape(-1).astype(np.float32)
+        center = image[1:-1, 1:-1]
+        neighbors = (image[:-2, :-2], image[:-2, 1:-1], image[:-2, 2:], image[1:-1, 2:], image[2:, 2:], image[2:, 1:-1], image[2:, :-2], image[1:-1, :-2])
+        lbp = np.zeros(center.shape, dtype=np.uint8)
+        for bit, neighbor in enumerate(neighbors):
+            lbp |= ((neighbor >= center).astype(np.uint8) << bit)
+        histogram = np.bincount(lbp.ravel(), minlength=256).astype(np.float32)
+        histogram /= max(float(histogram.sum()), 1.0)
+        vector = np.concatenate((hog_vector, histogram))
     else:
         # Baseline multi-orientation Gabor response statistics for fingerprint texture.
         parts = []
@@ -218,7 +230,9 @@ def audio_features(data: bytes) -> np.ndarray:
             filters[m - 1, k] = (right - k) / max(1, right - center)
     energies = np.log(np.maximum(power @ filters.T, 1e-10))
     coeffs = dct(energies, type=2, axis=1, norm="ortho")[:, :13]
-    return np.concatenate([coeffs.mean(axis=0), coeffs.std(axis=0)]).astype(np.float32)
+    zcr = np.mean(np.abs(np.diff(np.signbit(frames), axis=1)), axis=1)
+    rms = np.sqrt(np.mean(frames ** 2, axis=1))
+    return np.concatenate([coeffs.mean(axis=0), coeffs.std(axis=0), [zcr.mean(), zcr.std(), rms.mean(), rms.std()]]).astype(np.float32)
 
 
 def extract(data: bytes, modality: str) -> np.ndarray:
@@ -226,6 +240,30 @@ def extract(data: bytes, modality: str) -> np.ndarray:
         return audio_features(data)
     return image_features(data, modality)
 
+
+
+def load_model_bundle():
+    """Load only a locally configured, versioned training artifact."""
+    global _MODEL_CACHE, _MODEL_CACHE_MTIME
+    if not MODEL_PATH.is_file():
+        return None
+    modified = MODEL_PATH.stat().st_mtime_ns
+    if _MODEL_CACHE is None or _MODEL_CACHE_MTIME != modified:
+        candidate = joblib.load(MODEL_PATH)
+        if not isinstance(candidate, dict) or candidate.get("feature_version") != "bioguard-traditional-v1":
+            raise RuntimeError("Model bundle is missing or has an unsupported feature version")
+        _MODEL_CACHE = candidate
+        _MODEL_CACHE_MTIME = modified
+    return _MODEL_CACHE
+
+
+def model_score(bundle: dict, key: str, first: np.ndarray, second: np.ndarray) -> tuple[float, float]:
+    entry = bundle.get(key, {}).get("SVM")
+    if not entry or "model" not in entry or "threshold" not in entry:
+        raise KeyError(f"Calibrated SVM is missing for {key}")
+    pair = np.abs(first - second).astype(np.float32).reshape(1, -1)
+    score = float(entry["model"].predict_proba(pair)[0, 1])
+    return score, float(entry["threshold"])
 
 def vector_bytes(vector: np.ndarray) -> bytes:
     return np.asarray(vector, dtype="<f4").tobytes()
@@ -257,7 +295,7 @@ def health():
     return HealthResponse(
         status="ready" if configured else "configuration_required",
         api_version="0.1.0",
-        verification_mode="not_evaluated_until_calibrated",
+        verification_mode=("trained_model_loaded_experimental" if MODEL_PATH.is_file() else "not_evaluated_until_calibrated"),
         encryption_configured=configured,
     )
 
@@ -363,28 +401,63 @@ async def verify(
     stored = {row["modality"]: row["encrypted_vector"] for row in rows}
     try:
         comparisons = {}
+        candidates = {}
+        references = {}
         for kind in selected:
             raw = await read_sample(supplied[kind], kind)
             if kind not in stored:
                 comparisons[kind] = "missing_enrollment_template"
                 del raw
                 continue
-            candidate = extract(raw, kind)
-            reference = load_vector(stored[kind])
-            # Similarity is diagnostic only; no threshold is approved for access decisions.
-            if candidate.shape != reference.shape:
+            candidates[kind] = extract(raw, kind)
+            references[kind] = load_vector(stored[kind])
+            if candidates[kind].shape != references[kind].shape:
                 comparisons[kind] = "incompatible_feature_version"
-            else:
-                denom = float(np.linalg.norm(candidate) * np.linalg.norm(reference))
-                comparisons[kind] = round(float(np.dot(candidate, reference) / denom), 6) if denom else "invalid_feature_norm"
             del raw
+        bundle = load_model_bundle()
+        experimental_result = "not_evaluated"
+        experimental_scores = {}
+        reason_code = "CALIBRATION_REQUIRED"
+        if bundle is not None and all(kind in candidates and kind in references for kind in selected) and set(selected).issubset({"face", "voice"}):
+            if set(selected) == {"face", "voice"}:
+                face_score, face_threshold = model_score(bundle, "face", candidates["face"], references["face"])
+                voice_score, voice_threshold = model_score(bundle, "voice", candidates["voice"], references["voice"])
+                fusion_score, fusion_threshold = model_score(bundle, "early_fusion",
+                    np.concatenate((candidates["face"], candidates["voice"])),
+                    np.concatenate((references["face"], references["voice"])))
+                hierarchy = bundle.get("hierarchical", {})
+                margin = float(hierarchy.get("uncertainty_margin", 0.0))
+                if face_score >= face_threshold + margin:
+                    decision, route = face_score >= face_threshold, "face_confident"
+                elif face_score <= face_threshold - margin:
+                    decision, route = False, "face_confident_reject"
+                else:
+                    decision, route = voice_score >= voice_threshold, "voice_fallback"
+                experimental_scores = {"face": face_score, "voice": voice_score, "early_fusion": fusion_score}
+                experimental_result = "match" if decision else "no_match"
+                reason_code = "EXPERIMENTAL_HIERARCHICAL_RESULT"
+                comparisons["hierarchical_route"] = route
+                comparisons["early_fusion_threshold"] = fusion_threshold
+            else:
+                kind = selected[0]
+                score, threshold = model_score(bundle, kind, candidates[kind], references[kind])
+                experimental_scores[kind] = score
+                experimental_result = "match" if score >= threshold else "no_match"
+                reason_code = "EXPERIMENTAL_MODEL_RESULT"
+            comparisons["model_scores"] = experimental_scores
+        elif "fingerprint" in selected:
+            reason_code = "FINGERPRINT_MODEL_NOT_AVAILABLE"
+    except (ValueError, sf.LibsndfileError, cv2.error, InvalidToken) as exc:
+        raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
+    except (RuntimeError, KeyError, OSError) as exc:
+        raise HTTPException(503, detail={"code": "MODEL_NOT_READY", "message": "The configured model bundle is unavailable or incompatible."}) from exc
     except (ValueError, sf.LibsndfileError, cv2.error, InvalidToken) as exc:
         raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
     except RuntimeError as exc:
         raise HTTPException(503, detail={"code": "ENCRYPTION_NOT_CONFIGURED", "message": "Secure template access is not configured."}) from exc
     event_id = audit(actor, "biometric_verification", identity_ref, selected, "not_evaluated", request_id)
-    return {"request_id": request_id, "verification_id": str(uuid.uuid4()), "outcome": "not_evaluated",
-            "policy_decision": "pending", "reason_code": "CALIBRATION_REQUIRED",
+    return {"request_id": request_id, "verification_id": str(uuid.uuid4()), "outcome": experimental_result,
+            "policy_decision": "pending", "reason_code": reason_code,
             "diagnostic_similarity": comparisons,
             "audit_event_id": event_id,
-            "message": "No verification threshold has been calibrated. This result must not be used to grant or deny access."}
+            "message": "Experimental model output only. Policy decision remains pending; never use this result alone to grant or deny access."}
