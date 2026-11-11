@@ -47,7 +47,17 @@ python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports
 
 The command writes:
 - `reports/bioguard_traditional_ml.joblib` — trained research models and validation thresholds.
-- `reports/metrics.json` — test metrics and confusion matrices.
+- `reports/metrics.json` — test metrics and confusion matrices, grouped by feature/model and hierarchical flow.
+
+## Metric interpretation
+
+- Confusion matrix order is `[[TN, FP], [FN, TP]]`: impostors correctly rejected, impostors incorrectly accepted, genuine users incorrectly rejected, and genuine users correctly matched.
+- Accuracy is the fraction of all pair trials classified correctly.
+- Precision measures how many predicted genuine matches were actually genuine; recall measures how many genuine pairs were detected.
+- F1 is the harmonic mean of precision and recall.
+- FAR (False Acceptance Rate) is `FP / (FP + TN)`; FRR (False Rejection Rate) is `FN / (FN + TP)`.
+- EER (Equal Error Rate) is the point where FAR and FRR are closest; the operating threshold is selected from the validation split, not the test split.
+- ROC-AUC measures score ranking across thresholds. Compare all feature/model rows on the same held-out test split; do not compare results from different datasets or splits.
 
 The dataset is not included in this repository. Consequently, no real-data training run or biometric performance result is claimed here. CI uses synthetic signals to test feature extraction, pair construction, and metric calculations; it does not establish identity-verification accuracy or spoof resistance.
 
