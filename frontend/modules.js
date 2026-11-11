@@ -10,7 +10,8 @@
   }
 
   function upload(prefix, kind, title, accept, hint) {
-    return '<label class="upload-field" for="' + prefix + '-' + kind + '"><input id="' + prefix + '-' + kind + '" type="file" accept="' + accept + '" data-upload="' + kind + '"><span class="upload-icon">＋</span><span class="upload-copy"><strong>' + title + '</strong><small>' + hint + '</small><em data-file-name="' + kind + '">Choose a file</em></span></label>';
+    const inputId = prefix + '-' + kind + '-file';
+    return '<label class="upload-field" for="' + inputId + '"><input id="' + inputId + '" type="file" accept="' + accept + '" data-upload="' + kind + '"><span class="upload-icon">＋</span><span class="upload-copy"><strong>' + title + '</strong><small>' + hint + '</small><em data-file-name="' + kind + '">Choose a file</em></span></label>';
   }
 
   function uploads(prefix) {
