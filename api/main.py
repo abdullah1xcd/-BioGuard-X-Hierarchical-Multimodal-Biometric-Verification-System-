@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -106,7 +107,7 @@ def require_operator(credentials: Annotated[HTTPAuthorizationCredentials | None,
         raise HTTPException(status_code=401, detail={"code": "AUTH_REQUIRED", "message": "Operator authentication is required."})
     supplied = credentials.credentials.encode()
     expected_bytes = expected.encode()
-    if not hashlib.sha256(supplied).digest() == hashlib.sha256(expected_bytes).digest():
+    if not hmac.compare_digest(supplied, expected_bytes):
         raise HTTPException(status_code=401, detail={"code": "INVALID_CREDENTIALS", "message": "Authentication failed."})
     return "api-operator"
 
