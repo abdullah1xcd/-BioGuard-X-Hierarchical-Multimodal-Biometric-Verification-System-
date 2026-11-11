@@ -18,6 +18,7 @@ import numpy as np
 import soundfile as sf
 from scipy.fft import dct
 from scipy.signal import resample_poly
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score, confusion_matrix, f1_score, precision_score,
@@ -223,7 +224,7 @@ def train_pipeline(dataset_root: str | Path, output_dir: str | Path, seed: int =
         x_val, y_val, _ = make_pairs(val_records, key)
         x_test, y_test, _ = make_pairs(test_records, key)
         estimators = {
-            "SVM": make_pipeline(StandardScaler(), SVC(C=1.0, kernel="rbf", probability=True, class_weight="balanced", random_state=seed)),
+            "SVM": make_pipeline(StandardScaler(), CalibratedClassifierCV(SVC(C=1.0, kernel="rbf", class_weight="balanced", random_state=seed), cv=3, method="sigmoid", ensemble=False)),
             "RandomForest": RandomForestClassifier(n_estimators=100, min_samples_leaf=2, class_weight="balanced", random_state=seed, n_jobs=-1),
         }
         bundle[key] = {}
