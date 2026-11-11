@@ -21,7 +21,7 @@
   }
 
   function heading(kicker, title, subtitle) {
-    return '<div class="module-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> ' + kicker + '</div><h2>' + title + '</h2><p>' + subtitle + '</p></div><span class="demo-chip"><i></i> DEMO MODE</span></div>';
+    return '<div class="module-heading"><div><div class="eyebrow"><span class="eyebrow-line"></span> ' + kicker + '</div><h2>' + title + '</h2><p>' + subtitle + '</p></div><span class="demo-chip"><i></i> API PROTOTYPE</span></div>';
   }
 
   function section(number, title, subtitle, body) {
@@ -37,11 +37,11 @@
         '<label class="field field-wide"><span>Email address <small>Optional</small></span><input name="email" type="email" placeholder="name@company.com" autocomplete="email"><small class="field-error" data-error="email"></small></label></div>') +
       '<div class="form-divider"></div>' +
       section("02","Biometric modalities","Choose at least one modality. Fingerprint is optional.",
-        '<div class="modality-grid">' + modalities("enroll") + '</div><div class="upload-heading"><strong>Biometric sample files</strong><span>Files stay in this browser demo; nothing is uploaded.</span></div>' + uploads("enroll") + '<small class="field-error" id="enrollUploadError"></small>') +
+        '<div class="modality-grid">' + modalities("enroll") + '</div><div class="upload-heading"><strong>Biometric sample files</strong><span>Selected samples are sent to the local API for experimental processing; raw files are not retained.</span></div>' + uploads("enroll") + '<small class="field-error" id="enrollUploadError"></small>') +
       '<div class="form-divider"></div>' +
       section("03","Consent & privacy","Biometric collection requires explicit, informed consent.",
         '<div class="consent-box"><span class="consent-symbol">ⓘ</span><p>Explain what biometric data is collected, why it is needed, how it is stored, and how the person can request deletion. Use only samples collected with permission.</p></div><label class="consent-check"><input type="checkbox" name="consent" required><span>I confirm that informed consent has been obtained and the person has agreed to this biometric enrollment. <b>*</b></span></label><small class="field-error" data-error="consent"></small>') +
-      '<div class="form-actions"><span class="required-note"><b>*</b> Required fields</span><button class="button button-primary" type="submit"><span>＋</span> Create demo identity</button></div><div class="form-feedback" id="enrollFeedback" role="status" aria-live="polite" hidden></div></form>' +
+      '<div class="form-actions"><span class="required-note"><b>*</b> Required fields</span><button class="button button-primary" type="submit"><span>＋</span> Create identity</button></div><div class="form-feedback" id="enrollFeedback" role="status" aria-live="polite" hidden></div></form>' +
       '<aside class="module-aside"><article class="panel info-panel"><div class="aside-icon teal">⌁</div><h3>Enrollment checklist</h3><ul class="check-list"><li>Confirm the person’s identity</li><li>Obtain informed consent</li><li>Use clear, high-quality samples</li><li>Register only necessary modalities</li><li>Store biometric templates securely</li></ul></article>' +
       '<article class="panel info-panel"><div class="aside-icon blue">⌘</div><h3>What happens next?</h3><p>In the connected system, the backend validates samples, extracts modality-specific features, and stores an enrollment reference. This preview does not run those steps.</p><div class="pipeline-mini"><span>Sample</span><i>→</i><span>Feature extraction</span><i>→</i><span>Secure reference</span></div></article><div class="privacy-note"><strong>Privacy by design</strong><p>Do not use real biometric samples in this demo. Use synthetic or consented test files only.</p></div></aside></div>';
   }
@@ -57,7 +57,7 @@
       '<div class="form-divider"></div>' +
       section("03","Authorization","Only submit samples you are permitted to process.",
         '<div class="consent-box"><span class="consent-symbol">ⓘ</span><p>Verification is a sensitive operation. Ensure the person knows the purpose of the check and that you are authorized to process these samples.</p></div><label class="consent-check"><input type="checkbox" name="authorization" required><span>I am authorized to submit these samples for verification and have the required permission. <b>*</b></span></label><small class="field-error" data-error="authorization"></small>') +
-      '<div class="form-actions"><span class="required-note"><b>*</b> Required fields</span><button class="button button-primary" type="submit"><span>◎</span> Run demo verification</button></div><div class="form-feedback" id="verifyFeedback" role="status" aria-live="polite" hidden></div></form>' +
+      '<div class="form-actions"><span class="required-note"><b>*</b> Required fields</span><button class="button button-primary" type="submit"><span>◎</span> Run verification</button></div><div class="form-feedback" id="verifyFeedback" role="status" aria-live="polite" hidden></div></form>' +
       '<aside class="module-aside"><article class="panel info-panel"><div class="aside-icon teal">◎</div><h3>Hierarchical verification</h3><p>The intended backend flow evaluates selected signals, applies configured fusion, and passes the result to risk and policy checks.</p><div class="pipeline-steps"><div><b>1</b><span><strong>Biometric matching</strong><small>Face / voice / fingerprint</small></span></div><div><b>2</b><span><strong>Fusion & hierarchy</strong><small>Combine available evidence</small></span></div><div><b>3</b><span><strong>Risk & policy</strong><small>Review before any access action</small></span></div><div><b>4</b><span><strong>Audit event</strong><small>Record the decision trail</small></span></div></div></article><article class="panel info-panel"><div class="aside-icon orange">⚑</div><h3>Important limitation</h3><p>Risk never grants access by itself. A production workflow must enforce server-side authorization and any required human approval.</p></article></aside></div><section class="panel result-panel" id="verificationResult" hidden></section>';
   }
 
