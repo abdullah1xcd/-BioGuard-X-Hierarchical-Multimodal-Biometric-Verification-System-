@@ -14,7 +14,7 @@
 | Train/validation/test split | Implemented | Deterministic 60/20/20 sample-level split by participant; session-aware split remains a limitation |
 | Evaluation metrics | Implemented | Accuracy, precision, recall, F1, FAR, FRR, EER, ROC-AUC, confusion matrix |
 | Real-data training/results | NOT RUN | No consented dataset is included; requires at least 10 matched face/voice samples per participant |
-| API-to-trained-model integration | NOT IMPLEMENTED | API still uses separate diagnostic handcrafted descriptors and hard-gates decisions |
+| API-to-trained-model integration | Implemented as experimental inference | Shared face/voice feature dimensions, versioned joblib bundle loading, SVM score/threshold inference, early-fusion scoring, and face-first voice fallback; policy remains pending |
 | Fingerprint trained classifier/fusion | NOT IMPLEMENTED | Current API Gabor descriptor is diagnostic only |
 | Original risk engine, security agent, automation, speech commands, Streamlit app | NOT PRESENT in current branches | Neither main nor feature branch contains the original src/app/scripts implementation described by historical docs |
 | Face detection/alignment and liveness | NOT IMPLEMENTED | Required before any real-world use |
