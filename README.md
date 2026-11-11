@@ -23,3 +23,7 @@ The project now includes a dedicated **Fingerprint Verification** page for claim
 `src/face, voice, fingerprint, fusion, verification, hierarchy` biometric core · `src/security` risk, policies, permissions, agent ·
 `src/automation` engine · `src/commands, challenges, live, llm` · `src/database` SQLite · `app/` Streamlit · `scripts/` · `tests/`.
 See BUILD_STATUS.md for the honest implementation status of every feature.
+
+## Experimental FastAPI prototype
+
+An isolated development API has been added under `api/` because the original Python source directories described in this README are not present in the accessible branch snapshot. It provides consent-gated enrollment, encrypted handcrafted feature-template storage, and diagnostic similarity processing. It is **not** a recreation of the missing trained biometric/fusion/hierarchy/risk modules. Verification is deliberately hard-gated to `not_evaluated` / `pending` until the pipeline is validated and calibrated. See [api/README.md](api/README.md) and [frontend/API_INTEGRATION_CONTRACT.md](frontend/API_INTEGRATION_CONTRACT.md). Install its optional dependencies with `pip install -r requirements-api.txt`; the original Streamlit requirements and startup instructions are unchanged.
