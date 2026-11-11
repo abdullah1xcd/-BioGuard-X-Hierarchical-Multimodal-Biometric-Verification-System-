@@ -46,3 +46,42 @@ def test_identity_reference_validation():
     assert main.IDENTITY_RE.fullmatch("BG-00843")
     assert not main.IDENTITY_RE.fullmatch("bad ref")
     assert not main.IDENTITY_RE.fullmatch("x")
+
+def test_enrollment_and_verification_never_make_access_decision(monkeypatch, tmp_path):
+    import cv2
+    import json
+
+    configure(monkeypatch, tmp_path)
+    sample = np.random.default_rng(7).integers(0, 256, (160, 160), dtype=np.uint8)
+    ok, encoded = cv2.imencode(".png", sample)
+    assert ok
+    image_bytes = encoded.tobytes()
+    headers = {"Authorization": "Bearer test-operator-secret"}
+
+    with TestClient(main.app) as client:
+        enrolled = client.post(
+            "/api/v1/identities/enroll",
+            headers=headers,
+            data={
+                "profile": json.dumps({"full_name": "Test Person", "identity_ref": "BG-TEST-01"}),
+                "modalities": json.dumps(["face"]),
+                "consent": json.dumps({"granted": True, "policy_version": "test-v1"}),
+            },
+            files={"face_sample": ("face.png", image_bytes, "image/png")},
+        )
+        assert enrolled.status_code == 201, enrolled.text
+
+        verified = client.post(
+            "/api/v1/verification/multimodal",
+            headers=headers,
+            data={
+                "claimed_identity_ref": "BG-TEST-01",
+                "modalities": json.dumps(["face"]),
+                "authorization": json.dumps({"authorized": True, "purpose": "Automated test"}),
+            },
+            files={"face_sample": ("probe.png", image_bytes, "image/png")},
+        )
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["outcome"] == "not_evaluated"
+    assert verified.json()["policy_decision"] == "pending"
+    assert verified.json()["reason_code"] == "CALIBRATION_REQUIRED"
