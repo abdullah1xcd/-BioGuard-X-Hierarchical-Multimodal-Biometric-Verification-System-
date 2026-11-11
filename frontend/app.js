@@ -6,6 +6,8 @@ const toast = document.getElementById("toast");
 const overviewView = document.getElementById("overviewView");
 const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
+const API_BASE_URL = window.BIOGUARD_API_BASE || "http://127.0.0.1:8000";
+let operatorApiToken = "";
 
 const pageCopy = {
   overview: ["Overview", "Here's what's happening across your biometric security environment."],
@@ -179,29 +181,89 @@ function bindModuleEvents(page) {
 
     const submit = form.querySelector('button[type="submit"]');
     const original = submit.innerHTML;
-    submit.disabled = true;
-    submit.innerHTML = '<span class="button-spinner"></span> Preparing demo…';
-    feedback.hidden = false;
-    feedback.classList.add("feedback-info");
-    feedback.textContent = "Validating form fields locally. No biometric files are being uploaded or analyzed.";
-    await new Promise((resolve) => window.setTimeout(resolve, 900));
-
-    if (page === "enrollment") {
-      const reference = form.elements.identityRef.value.trim();
-      feedback.className = "form-feedback feedback-success";
-      feedback.innerHTML = '<strong>Demo profile prepared</strong><span>' + escapeHtml(form.elements.fullName.value.trim()) + ' · ' + escapeHtml(reference) + '</span><small>This is a local preview only. No identity, biometric template, or database record was created.</small>';
-      showToast("Demo enrollment form validated.");
-    } else {
-      const result = document.getElementById("verificationResult");
-      result.hidden = false;
-      result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> SIMULATED RESULT</span><h3>Verification preview complete</h3><p>Reference: ' + escapeHtml(form.elements.identityRef.value.trim()) + '</p></div><span class="result-status">NOT EVALUATED</span></div><div class="result-warning"><strong>Demo only — no biometric comparison occurred.</strong><span>Match scores, identity confidence, and risk levels are intentionally not generated without a connected and validated backend.</span></div><div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") + '</strong></span><span>Processing <strong>Client-side form validation only</strong></span></div>';
-      feedback.className = "form-feedback feedback-success";
-      feedback.textContent = "Input validation completed. The biometric verification engine was not called.";
-      showToast("Demo verification form validated.");
-      result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!operatorApiToken) {
+      operatorApiToken = window.prompt("Enter the local BioGuard API operator token. It stays in this page's memory only.") || "";
     }
-    submit.disabled = false;
-    submit.innerHTML = original;
+    if (!operatorApiToken) {
+      feedback.hidden = false;
+      feedback.className = "form-feedback feedback-error";
+      feedback.textContent = "API token is required. No biometric data was sent.";
+      return;
+    }
+
+    submit.disabled = true;
+    submit.innerHTML = '<span class="button-spinner"></span> Processing…';
+    feedback.hidden = false;
+    feedback.className = "form-feedback feedback-info";
+    feedback.textContent = "Sending the selected samples to the local BioGuard API over your configured connection…";
+
+    try {
+      const payload = new FormData();
+      payload.append("modalities", JSON.stringify(selected));
+      selected.forEach((kind) => {
+        if (files[kind]) payload.append(kind + "_sample", files[kind], files[kind].name);
+      });
+
+      let endpoint;
+      if (page === "enrollment") {
+        endpoint = "/api/v1/identities/enroll";
+        payload.append("profile", JSON.stringify({
+          full_name: form.elements.fullName.value.trim(),
+          identity_ref: form.elements.identityRef.value.trim(),
+          email: form.elements.email.value.trim() || null
+        }));
+        payload.append("consent", JSON.stringify({
+          granted: true,
+          policy_version: "bioguard-coursework-prototype-v1"
+        }));
+      } else {
+        endpoint = "/api/v1/verification/multimodal";
+        payload.append("claimed_identity_ref", form.elements.identityRef.value.trim());
+        payload.append("authorization", JSON.stringify({
+          authorized: true,
+          purpose: "Authorized coursework prototype verification"
+        }));
+      }
+
+      const response = await fetch(API_BASE_URL + endpoint, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + operatorApiToken },
+        body: payload
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = body.detail || body.error || {};
+        throw new Error(detail.message || detail.code || "API request failed with HTTP " + response.status);
+      }
+
+      if (page === "enrollment") {
+        feedback.className = "form-feedback feedback-success";
+        feedback.textContent = "Identity enrolled. Reference: " + body.identity.identity_ref +
+          ". Stored modalities: " + body.registered_modalities.join(", ") +
+          ". " + (body.notice || "");
+        showToast("API enrollment completed.");
+      } else {
+        const result = document.getElementById("verificationResult");
+        result.hidden = false;
+        result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>Verification request processed</h3><p>Reference: ' +
+          escapeHtml(form.elements.identityRef.value.trim()) + '</p></div><span class="result-status">NOT EVALUATED</span></div>' +
+          '<div class="result-warning"><strong>No access decision was made.</strong><span>' +
+          escapeHtml(body.message || "Threshold calibration is required before verification decisions can be enabled.") +
+          '</span></div><pre class="api-diagnostic">' + escapeHtml(JSON.stringify(body.diagnostic_similarity || {}, null, 2)) +
+          '</pre><div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") +
+          '</strong></span><span>Policy <strong>' + escapeHtml(body.policy_decision || "pending") + '</strong></span></div>';
+        feedback.className = "form-feedback feedback-info";
+        feedback.textContent = "The API processed the samples, but its uncalibrated baseline is not allowed to verify identity or grant access.";
+        result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        showToast("Verification processed — not evaluated.");
+      }
+    } catch (error) {
+      feedback.className = "form-feedback feedback-error";
+      feedback.textContent = "API request failed: " + error.message + ". No demo success was substituted.";
+    } finally {
+      submit.disabled = false;
+      submit.innerHTML = original;
+    }
   });
 }
 
