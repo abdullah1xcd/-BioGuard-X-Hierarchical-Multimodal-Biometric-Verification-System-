@@ -1,20 +1,20 @@
-# Next steps
+# Remaining work to complete BioGuard X validation
 
-## Required to produce real biometric results
+## Required owner-side steps
 
-1. Install the project dependencies: `pip install -r requirements.txt`.
-2. Collect consented face and voice samples for at least two participants. Each participant needs at least 10 matched samples; corresponding image/audio filenames must share the same stem. Keep capture sessions independent and avoid near-duplicate frames across splits.
+1. Collect consented face and voice samples for at least two participants, with 10+ matched filename stems per participant. For three-modality fusion, add a same-stem fingerprint image for every paired sample.
+2. Keep capture sessions separate and record session metadata; the current default split is sample-level, not session-aware.
 3. Run `python -m pytest tests -q`.
 4. Run `python -m scripts.run_ml_pipeline --dataset datasets/custom --output reports`.
-5. Review `reports/metrics.json` and the saved model bundle. Report only the measured test results from this run.
+5. Review `reports/metrics.json`, confusion matrices, FAR/FRR/EER, and thresholds. Report only measured real-data test results.
+6. Configure `BIOGUARD_MODEL_PATH` to the generated model bundle and test the frontend/API locally with the actual files.
 
-## Remaining engineering work
+## Remaining engineering and acceptance gates
 
-- Integrate the trained model bundle into the FastAPI service after dataset evaluation and model review.
-- Add a session-aware split protocol and external/participant-independent evaluation.
-- Add the optional fingerprint classifier and evaluate its fusion with face/voice.
-- Implement face detection/alignment and liveness experiments.
-- Perform browser and real webcam/microphone testing on the project owner's machine.
-- Do not enable real access-control decisions until the model and policy pipeline have been independently reviewed.
+- Session-aware or participant-independent evaluation protocol.
+- Face detection/alignment and liveness/spoof experiments if required by the professor.
+- Browser interaction and actual webcam/microphone testing on the project owner's machine.
+- Production hardening: HTTPS, rate limiting, managed key storage, identity deletion/retention policy, and independent security review.
+- Any real access-control policy integration must be independently reviewed. The current API deliberately keeps `policy_decision=pending`.
 
-The original Streamlit app, security agent, automation engine, speech-command system, and other research modules referenced by older docs are absent from both currently accessible branches; they are not represented as completed features in this branch.
+The original Streamlit app, risk engine, security agent, automation engine, and speech-command modules referenced by older documentation are absent from both accessible branches. They are not represented as completed features.
