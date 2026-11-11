@@ -29,9 +29,9 @@ Use synthetic or explicitly consented test material only. Do not use real biomet
 
 ## Backend status and integration plan
 
-The repository's documented application is currently a **17-page Streamlit application** (\`streamlit run app/main.py\`) with Python biometric engines and SQLite. No FastAPI service or verified REST endpoint implementation was found during this frontend milestone. The frontend therefore does not send requests to guessed endpoints.
+The project documentation describes a **17-page Streamlit application** (\`streamlit run app/main.py\`) with Python biometric engines and SQLite. However, direct GitHub tree inspection on 2026-11-11 found that neither \`main\` nor \`frontend/vanilla-js-redesign\` contains the referenced \`src/\`, \`app/\`, \`scripts/\`, or \`tests/\` directories. The documented \`app/main.py\` entry point and Python service implementations are therefore not available in the repository tree inspected for this integration. No FastAPI dependency, application entry point, router, or OpenAPI contract is present. No API endpoint can be confirmed, so the frontend does not send requests.
 
-A future FastAPI adapter may expose an API contract after the backend team confirms the request/response schemas and maps them to the existing Python services. Candidate routes to discuss (not implemented or verified):
+A separately mounted FastAPI adapter may be the smallest safe HTTP layer once the missing Python source is restored and the existing service interfaces are inspected. A draft contract, proposed schemas, security requirements, and integration gates are documented in [API_INTEGRATION_CONTRACT.md](./API_INTEGRATION_CONTRACT.md). Candidate routes in this README are proposals only, not implemented or verified:
 
 | Purpose | Candidate route | Status |
 |---|---|---|
@@ -45,4 +45,4 @@ Before connecting the browser, agree on multipart upload fields, accepted media 
 
 ## Existing Python system
 
-The frontend is a presentation layer only. Keep the existing Python face, voice, fingerprint, fusion, hierarchy, security, automation, and SQLite modules intact. The biometric implementation and its evaluation limitations remain documented in the repository's root README, \`BUILD_STATUS.md\`, \`SECURITY_AND_PRIVACY.md\`, and \`FIXES_AND_VALIDATION.md\`.
+The frontend is a presentation layer only. Do not replace or rewrite the existing Python face, voice, fingerprint, fusion, hierarchy, security, automation, or SQLite modules when their source is restored. The current GitHub branch snapshot exposes project documentation describing those components, but not their implementation files. Keep the frontend in demo mode until the actual backend code is available and the integration gates in [API_INTEGRATION_CONTRACT.md](./API_INTEGRATION_CONTRACT.md) are satisfied.
