@@ -30,7 +30,7 @@
       <div class="nav-label">WORKSPACE</div>
       <nav class="primary-nav" aria-label="Main navigation">
         <button class="nav-item active" data-page="overview"><span class="nav-icon">◫</span><span>Overview</span></button>
-        <button class="nav-item" data-page="verification"><span class="nav-icon">◎</span><span>Verification</span><span class="nav-badge">Live</span></button>
+        <button class="nav-item" data-page="verification"><span class="nav-icon">◎</span><span>Verification</span><span class="nav-badge">API</span></button>
         <button class="nav-item" data-page="enrollment"><span class="nav-icon">＋</span><span>Identity enrollment</span></button>
         <button class="nav-item" data-page="identities"><span class="nav-icon">♙</span><span>Identities</span></button>
         <button class="nav-item" data-page="analytics"><span class="nav-icon">▥</span><span>Analytics</span></button>
@@ -45,7 +45,7 @@
       </nav>
 
       <div class="sidebar-bottom">
-        <div class="system-status"><span class="status-pulse"></span><span><strong>All systems operational</strong><small>Last checked just now</small></span></div>
+        <div class="system-status"><span class="status-pulse"></span><span><strong>Preview environment</strong><small>Live health check not connected</small></span></div>
         <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
         <div class="profile">
           <div class="profile-avatar">AD</div>
@@ -141,13 +141,13 @@
           </article>
 
           <article class="panel security-panel">
-            <div class="panel-heading"><div><h2>Security posture</h2><p>Environment health overview</p></div><span class="live-label"><i></i> LIVE</span></div>
-            <div class="posture-score"><div class="score-ring"><div><strong>94</strong><span>/ 100</span></div></div><div class="score-copy"><strong>Excellent</strong><span>Your environment is looking healthy.</span></div></div>
+            <div class="panel-heading"><div><h2>Security posture</h2><p>Environment health overview</p></div><span class="live-label"><i></i> DEMO</span></div>
+            <div class="posture-score"><div class="score-ring"><div><strong>94</strong><span>/ 100</span></div></div><div class="score-copy"><strong>Excellent</strong><span>Illustrative preview; no live health check is connected.</span></div></div>
             <div class="posture-list">
-              <div><span class="posture-indicator good"></span><span>Biometric engine</span><strong>Healthy</strong></div>
-              <div><span class="posture-indicator good"></span><span>Risk monitoring</span><strong>Active</strong></div>
+              <div><span class="posture-indicator good"></span><span>Biometric engine</span><strong>Not evaluated</strong></div>
+              <div><span class="posture-indicator good"></span><span>Risk monitoring</span><strong>Not connected</strong></div>
               <div><span class="posture-indicator warning"></span><span>Pending approvals</span><strong>03</strong></div>
-              <div><span class="posture-indicator good"></span><span>Audit logging</span><strong>Enabled</strong></div>
+              <div><span class="posture-indicator good"></span><span>Audit logging</span><strong>API metadata only</strong></div>
             </div>
           </article>
         </section>
@@ -155,7 +155,7 @@
         <section class="bottom-grid">
           <article class="panel events-panel">
             <div class="panel-heading">
-              <div><h2>Recent verification events</h2><p>Latest authentication activity across your system</p></div>
+              <div><h2>Recent verification events</h2><p>Illustrative sample events — not live API records</p></div>
               <button class="text-button" id="viewAllEvents">View all events <span>→</span></button>
             </div>
             <div class="table-toolbar"><div class="search-box"><span>⌕</span><input id="eventSearch" type="search" placeholder="Search identity or event..." aria-label="Search verification events"></div><button class="filter-button" id="filterButton">☷ <span>Filter</span></button></div>
@@ -184,7 +184,7 @@
           </article>
         </section>
 
-        <footer class="page-footer"><span>© 2026 BioGuard X. Intelligent identity security.</span><span><i></i> Demo interface · API not connected</span></footer>
+        <footer class="page-footer"><span>© 2026 BioGuard X. Intelligent identity security.</span><span><i></i> Illustrative dashboard · live analytics not connected</span></footer>
         </div>
         <section id="moduleView" class="module-view" hidden></section>
       </div>
