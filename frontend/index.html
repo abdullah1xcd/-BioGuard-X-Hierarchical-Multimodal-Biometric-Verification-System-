@@ -124,21 +124,7 @@
               <div><h2>Verification activity</h2><p>Live activity analytics endpoint is not implemented.</p></div>
               <button class="select-button" id="periodSelect">Last 7 days <span>⌄</span></button>
             </div>
-            <div class="chart-legend"><span><i class="legend-dot legend-primary"></i> Successful</span><span><i class="legend-dot legend-muted"></i> Failed</span></div>
-            <div class="chart-wrap">
-              <div class="chart-y-labels"><span>1,000</span><span>750</span><span>500</span><span>250</span><span>0</span></div>
-              <div class="chart-main">
-                <div class="chart-grid-lines"><i></i><i></i><i></i><i></i><i></i></div>
-                <svg class="activity-chart" viewBox="0 0 700 220" preserveAspectRatio="none" role="img" aria-label="Illustrative verification activity chart">
-                  <defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#29d5c2" stop-opacity=".22"/><stop offset="100%" stop-color="#29d5c2" stop-opacity="0"/></linearGradient></defs>
-                  <path class="chart-area" d="M0 153 C35 144 50 116 100 126 S160 102 200 113 S260 72 300 90 S360 60 400 78 S460 45 500 66 S560 31 600 49 S660 22 700 34 L700 220 L0 220Z"/>
-                  <path class="chart-line" d="M0 153 C35 144 50 116 100 126 S160 102 200 113 S260 72 300 90 S360 60 400 78 S460 45 500 66 S560 31 600 49 S660 22 700 34"/>
-                  <path class="failed-line" d="M0 190 C40 185 60 178 100 183 S160 170 200 178 S260 160 300 168 S360 156 400 164 S460 151 500 158 S560 144 600 151 S660 140 700 145"/>
-                  <circle cx="500" cy="66" r="4.5" class="chart-point"/>
-                </svg>
-                <div class="chart-x-labels"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-              </div>
-            </div>
+            <div class="chart-wrap"><div class="empty-state">No verification activity data is available yet.</div></div>
           </article>
 
           <article class="panel security-panel">
