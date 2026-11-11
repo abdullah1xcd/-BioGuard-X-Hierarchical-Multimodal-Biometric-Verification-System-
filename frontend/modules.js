@@ -16,7 +16,7 @@
   function uploads(prefix) {
     return '<div class="upload-grid">' +
       upload(prefix,"face","Face sample","image/*","JPG, PNG · max 10 MB") +
-      upload(prefix,"voice","Voice sample","audio/*","WAV, MP3, M4A · max 20 MB") +
+      upload(prefix,"voice","Voice sample","audio/wav,audio/flac,audio/ogg,.wav,.flac,.ogg","WAV, FLAC, OGG · max 20 MB") +
       upload(prefix,"fingerprint","Fingerprint sample","image/*","PNG, JPG · max 10 MB") + '</div>';
   }
 
