@@ -87,7 +87,7 @@ async function refreshApiHealth() {
 }
 function greeting() {
   const hour = new Date().getHours();
-  return hour < 12 ? "Good morning, Admin ✳" : hour < 18 ? "Good afternoon, Admin ✳" : "Good evening, Admin ✳";
+  return "Welcome to BioGuard X";
 }
 
 function bindOverviewEvents() {
