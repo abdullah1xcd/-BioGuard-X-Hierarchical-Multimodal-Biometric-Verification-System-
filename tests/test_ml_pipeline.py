@@ -10,6 +10,7 @@ from src.bioguard_ml import (
     face_features,
     make_pairs,
     voice_features,
+    train_pipeline,
 )
 
 
@@ -63,3 +64,32 @@ def test_eer_calibration_and_report_metrics_are_finite():
     for key in ("accuracy", "precision", "recall", "f1", "far", "frr", "eer", "roc_auc"):
         assert np.isfinite(report[key])
     assert report["confusion_matrix"] == [[3, 0], [0, 3]]
+
+
+
+def test_training_pipeline_smoke_with_synthetic_paired_data(tmp_path):
+    dataset = tmp_path / "dataset"
+    for participant_index, frequency in ((1, 220), (2, 440)):
+        participant = dataset / f"participant_{participant_index:03d}"
+        face_dir, voice_dir = participant / "face", participant / "voice"
+        face_dir.mkdir(parents=True)
+        voice_dir.mkdir(parents=True)
+        for sample_index in range(10):
+            rng = np.random.default_rng(participant_index * 100 + sample_index)
+            image = rng.integers(0, 256, (160, 160), dtype=np.uint8)
+            image = np.clip(image.astype(np.int16) + participant_index * 8, 0, 255).astype(np.uint8)
+            assert cv2.imwrite(str(face_dir / f"sample_{sample_index:03d}.png"), image)
+            sample_rate = 16000
+            time = np.arange(sample_rate, dtype=np.float32) / sample_rate
+            signal = 0.2 * np.sin(2 * np.pi * (frequency + sample_index) * time)
+            signal += rng.normal(0, 0.005, size=sample_rate).astype(np.float32)
+            sf.write(voice_dir / f"sample_{sample_index:03d}.wav", signal.astype(np.float32), sample_rate)
+
+    output = tmp_path / "reports"
+    report = train_pipeline(dataset, output, seed=7)
+    assert set(report["models"]) == {"hog", "lbp", "face", "voice", "early_fusion"}
+    assert set(report["models"]["face"]) == {"SVM", "RandomForest"}
+    assert set(report["models"]["voice"]) == {"SVM", "RandomForest"}
+    assert report["hierarchical"]["face_first_then_voice"] is True
+    assert (output / "bioguard_traditional_ml.joblib").is_file()
+    assert (output / "metrics.json").is_file()
