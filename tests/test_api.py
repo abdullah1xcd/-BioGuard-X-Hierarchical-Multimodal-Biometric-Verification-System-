@@ -391,3 +391,86 @@ def test_three_modality_api_inference_uses_fingerprint_fusion(monkeypatch, tmp_p
     assert verified.json()["outcome"] == "match"
     assert verified.json()["reason_code"] == "EXPERIMENTAL_THREE_MODALITY_RESULT"
     assert verified.json()["policy_decision"] == "pending"
+
+def test_vercel_requires_persistent_postgres_before_enrollment(monkeypatch, tmp_path):
+    import json
+
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.delenv("BIOGUARD_DATABASE_URL", raising=False)
+    monkeypatch.delenv("POSTGRES_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        health = client.get("/api/v1/health")
+        response = client.post(
+            "/api/v1/identities/enroll",
+            headers=headers,
+            data={
+                "profile": json.dumps({"full_name": "Test Person", "identity_ref": "BG-VERCEL-01"}),
+                "modalities": json.dumps(["face"]),
+                "consent": json.dumps({"granted": True, "policy_version": "test-v1"}),
+            },
+        )
+
+    assert health.status_code == 200
+    assert health.json()["status"] == "configuration_required"
+    assert health.json()["database_backend"] == "not_configured"
+    assert health.json()["persistent_storage_configured"] is False
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "DATABASE_NOT_CONFIGURED"
+
+
+def test_vercel_rejects_oversized_request_before_multipart_parsing(monkeypatch, tmp_path):
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("VERCEL", "1")
+    headers = {
+        "Authorization": "Bearer test-operator-secret",
+        "Content-Length": str(main.MAX_VERCEL_REQUEST_BYTES + 1),
+    }
+    with TestClient(main.app) as client:
+        response = client.post("/api/v1/identities/enroll", headers=headers, content=b"x")
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "REQUEST_TOO_LARGE"
+
+
+def test_postgres_adapter_translates_placeholders_and_creates_schema(monkeypatch):
+    class FakeCursor:
+        def fetchone(self):
+            return {"ok": 1}
+
+    class FakeConnection:
+        def __init__(self):
+            self.statements = []
+            self.committed = False
+            self.closed = False
+
+        def execute(self, statement, parameters=()):
+            self.statements.append((statement, parameters))
+            return FakeCursor()
+
+        def commit(self):
+            self.committed = True
+
+        def rollback(self):
+            raise AssertionError("Unexpected rollback")
+
+        def close(self):
+            self.closed = True
+
+    fake = FakeConnection()
+    monkeypatch.setenv("BIOGUARD_DATABASE_URL", "postgresql://example.invalid/test")
+    monkeypatch.setattr(main.psycopg, "connect", lambda *args, **kwargs: fake)
+
+    with main.db() as conn:
+        assert conn.execute("SELECT ? AS value", (7,)).fetchone() == {"ok": 1}
+    main.init_db()
+
+    statements = [statement for statement, _ in fake.statements]
+    assert ("SELECT %s AS value", (7,)) in fake.statements
+    assert any("encrypted_vector BYTEA" in statement for statement in statements)
+    assert any("active BOOLEAN" in statement for statement in statements)
+    assert fake.committed is True
+    assert fake.closed is True
