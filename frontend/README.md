@@ -24,7 +24,7 @@ cd frontend
 py -m http.server 5500
 ```
 
-Open `http://localhost:5500`. The first enrollment/verification request asks for the API operator token. It remains in page memory only and is not persisted. The API base defaults to `http://127.0.0.1:8000` on localhost. For a deployed frontend, edit `config.js` and set `window.BIOGUARD_API_BASE` to the public HTTPS URL of the separately hosted FastAPI service. Do not put the operator token, Firebase Admin credentials, database password, or encryption key in this file.
+Open `http://localhost:5500`. The first enrollment/verification request asks for the API operator token. It remains in page memory only and is not persisted. The API base defaults to `http://127.0.0.1:8000` on localhost. For a deployed frontend, edit `config.js` and set `window.BIOGUARD_API_BASE` to the public HTTPS URL of the separately hosted FastAPI service. Remote HTTP API origins are blocked by the browser code; HTTP is allowed only for local loopback development. Do not put the operator token, Firebase Admin credentials, database password, or encryption key in this file.
 
 Keep the encryption key stable between restarts; otherwise previously stored encrypted templates cannot be read. Never commit either secret. The token flow is for local coursework development only, not production deployment.
 
@@ -33,7 +33,8 @@ Keep the encryption key stable between restarts; otherwise previously stored enc
 - Responsive dark dashboard; unavailable analytics display empty states rather than fabricated values.
 - Identity enrollment with profile, modality, file, and consent validation.
 - Multimodal verification with claimed identity and authorization acknowledgement.
-- API requests for selected samples; no silent demo-success fallback when the API is unavailable.
+- API requests for selected samples only when a configured API is reachable over HTTPS (or local loopback HTTP during development).
+- An explicit offline demo preview remains available when the API is unavailable. It sends no files, creates no identity, performs no feature extraction, and always shows verification as NOT EVALUATED.
 - Displays NOT EVALUATED when no compatible model bundle is loaded, or a clearly labeled experimental model match/no-match result when one is loaded.
 - The API policy decision remains pending; the UI explicitly states that no access decision is made.
 
