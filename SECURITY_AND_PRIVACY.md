@@ -4,7 +4,7 @@
 
 - Enrollment requires a server-validated consent acknowledgement and policy-version string.
 - Verification requests require a server-validated authorization acknowledgement and purpose string.
-- Raw uploads are size-limited, decoded and processed in memory, and are not written to disk by the API.
+- Raw uploads are size-limited and are not persisted in the application database or audit log. Starlette's multipart parser may temporarily spool larger uploads to host temporary storage before request cleanup; the host must restrict access to that storage and manage cleanup securely.
 - Feature vectors are encrypted with Fernet before storage in SQLite.
 - SQLite stores identity profile metadata (including optional email), consent policy version, encrypted templates, and metadata-only audit events. Metadata itself is not encrypted by this prototype.
 - The frontend keeps the development bearer token in page memory only; it is not persisted.
