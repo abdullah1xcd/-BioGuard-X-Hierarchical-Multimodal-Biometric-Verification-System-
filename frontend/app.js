@@ -11,6 +11,7 @@ const configuredApiBase = String(window.BIOGUARD_API_BASE || "").trim();
 const API_BASE_URL = configuredApiBase.replace(/\/+$/, "");
 const API_IS_CONFIGURED = Boolean(API_BASE_URL);
 const API_CONFIG_ERROR = getApiConfigError(API_BASE_URL);
+const API_CAN_SEND = API_IS_CONFIGURED && !API_CONFIG_ERROR;
 const API_TIMEOUT_MS = 45000;
 let operatorApiToken = "";
 
@@ -75,7 +76,7 @@ function setPage(page) {
   overviewView.hidden = true;
   moduleView.hidden = false;
   if (page === "enrollment" || page === "verification") {
-    moduleView.innerHTML = window.BioGuardModules[page]({ apiConfigured: API_IS_CONFIGURED });
+    moduleView.innerHTML = window.BioGuardModules[page]({ apiConfigured: API_CAN_SEND });
     bindModuleEvents(page);
   } else {
     moduleView.innerHTML = '<section class="panel coming-soon"><span class="coming-icon">⌁</span><h2>' +
@@ -305,7 +306,7 @@ function bindModuleEvents(page) {
   const uploadError = document.getElementById(page === "enrollment" ? "enrollUploadError" : "verifyUploadError");
   const modalityError = document.getElementById(prefix + "ModalityError");
 
-  if (API_IS_CONFIGURED) {
+  if (API_CAN_SEND) {
     moduleView.querySelectorAll("[data-upload]").forEach((input) => {
       input.addEventListener("change", () => {
         const file = input.files && input.files[0];
@@ -359,7 +360,7 @@ function bindModuleEvents(page) {
       valid = false;
     }
 
-    if (API_IS_CONFIGURED) {
+    if (API_CAN_SEND) {
       const files = selectedFiles(prefix, selected);
       if (selected.length && !validateFiles(files, uploadError)) valid = false;
     }
@@ -369,13 +370,8 @@ function bindModuleEvents(page) {
       return;
     }
 
-    if (API_IS_CONFIGURED && API_CONFIG_ERROR) {
-      setFeedback(feedback, "error", API_CONFIG_ERROR + " No biometric data was sent.");
-      return;
-    }
-
     let token = "";
-    if (API_IS_CONFIGURED) {
+    if (API_CAN_SEND) {
       if (!operatorApiToken) {
         operatorApiToken = (window.prompt("Enter the BioGuard API operator token. It stays in this page's memory only.") || "").trim();
       }
@@ -389,13 +385,13 @@ function bindModuleEvents(page) {
     const submit = form.querySelector('button[type="submit"]');
     const originalButton = submit.innerHTML;
     submit.disabled = true;
-    submit.innerHTML = '<span class="button-spinner"></span> ' + (API_IS_CONFIGURED ? "Processing…" : "Preparing preview…");
-    setFeedback(feedback, "info", API_IS_CONFIGURED
+    submit.innerHTML = '<span class="button-spinner"></span> ' + (API_CAN_SEND ? "Processing…" : "Preparing preview…");
+    setFeedback(feedback, "info", API_CAN_SEND
       ? "Sending selected samples to the configured experimental BioGuard API…"
       : "Preparing a local workflow preview. No biometric samples will be sent.");
 
     try {
-      if (!API_IS_CONFIGURED) {
+      if (!API_CAN_SEND) {
         await new Promise((resolve) => window.setTimeout(resolve, 350));
         renderDemoResult(page, form, selected);
         return;
