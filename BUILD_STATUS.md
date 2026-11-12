@@ -40,7 +40,7 @@ The run validates the combined multipart upload-size guard and its boundary test
 
 ## Deployment status
 
-The earlier Vercel deployment failed, but its detailed logs were not available through the GitHub integration, so the cause was not confirmed. The deployment configuration has since been migrated to root `vercel.toml` with separate web and API services. The Vercel check for the configuration commit is currently **pending**; this is not proof of a successful deployment. Do not treat CI success as a successful deployment.
+The earlier Vercel deployment failed, but its detailed logs were not available through the GitHub integration, so the cause was not confirmed. The deployment configuration has since been migrated to root `vercel.toml` with separate web and API services. The Vercel check for configuration commit `ea5537e1302b21d710f683cbb181892047cb975f` now reports **success**. This confirms the Vercel deployment check passed, but the live API health endpoint, environment variables, and PostgreSQL connection have not yet been verified. Do not treat CI success as a successful deployment.
 
 ## Remaining owner-side deployment work
 
