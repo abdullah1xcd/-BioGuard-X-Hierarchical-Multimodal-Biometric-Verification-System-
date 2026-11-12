@@ -116,7 +116,7 @@ async function serveStatic(request, response, pathname) {
     let content;
     if (relativePath === "config.js") {
       const source = await readFile(filePath, "utf8");
-      content = Buffer.from("window.__BIOGUARD_USE_SAME_ORIGIN_API__ = true;\\n" + source);
+      content = Buffer.from("window.__BIOGUARD_USE_SAME_ORIGIN_API__ = true;\n" + source);
     }
     response.writeHead(200, {
       "content-type": MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream",
@@ -151,6 +151,6 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`BioGuard X ready on http://${HOST}:${PORT}`);
-  console.log(`API proxy target: ${API_ORIGIN.origin}`);
+  console.log(\`BioGuard X ready on http://\${HOST}:\${PORT}\`);
+  console.log(\`API proxy target: \${API_ORIGIN.origin}\`);
 });
