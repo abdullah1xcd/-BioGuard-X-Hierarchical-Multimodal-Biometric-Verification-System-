@@ -131,3 +131,12 @@ test("local and custom hosts remain opt-in for API requests", () => {
   assert.equal(custom.BIOGUARD_API_BASE, "");
   assert.equal(custom.BIOGUARD_API_MAX_REQUEST_BYTES, 0);
 });
+test("combined multipart request cap blocks oversized selections while local mode stays uncapped", () => {
+  const cap = 4 * 1024 * 1024;
+  const overhead = 128 * 1024;
+  assert.equal(contract.isWithinRequestLimit(cap - overhead, cap), true);
+  assert.equal(contract.isWithinRequestLimit(cap - overhead + 1, cap), false);
+  assert.equal(contract.isWithinRequestLimit(cap, cap), false);
+  assert.equal(contract.isWithinRequestLimit(20 * 1024 * 1024, 0), true);
+  assert.equal(contract.isWithinRequestLimit(-1, cap), false);
+});

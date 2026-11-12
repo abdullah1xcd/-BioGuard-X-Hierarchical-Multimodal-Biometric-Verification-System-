@@ -187,8 +187,7 @@ function validateFiles(files, errorElement) {
   const oversized = Object.keys(files).filter((kind) => files[kind] && files[kind].size > limits[kind] * 1024 * 1024);
   const totalBytes = Object.values(files).reduce((sum, file) => sum + (file ? file.size : 0), 0);
   const maxRequestBytes = Number(window.BIOGUARD_API_MAX_REQUEST_BYTES || 0);
-  const maxSampleBytes = maxRequestBytes > 0 ? maxRequestBytes - 128 * 1024 : 0;
-  const totalTooLarge = maxSampleBytes > 0 && totalBytes > maxSampleBytes;
+  const totalTooLarge = !window.BioGuardApiContract.isWithinRequestLimit(totalBytes, maxRequestBytes);
   const wrongType = Object.keys(files).filter((kind) => {
     const file = files[kind];
     if (!file) return false;
@@ -199,7 +198,7 @@ function validateFiles(files, errorElement) {
     return !extensionValid || !mimeCompatible;
   });
 
-  if (missing.length || empty.length || oversized.length || wrongType.length) {
+  if (missing.length || empty.length || oversized.length || wrongType.length || totalTooLarge) {
     const parts = [];
     if (missing.length) parts.push("Add a sample for: " + missing.join(", ") + ".");
     if (empty.length) parts.push("The selected sample is empty: " + empty.join(", ") + ".");

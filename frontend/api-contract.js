@@ -2,6 +2,17 @@
   const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
   const hasText = (value) => typeof value === "string" && value.trim().length > 0;
 
+  function isWithinRequestLimit(totalBytes, maxRequestBytes, overheadBytes = 128 * 1024) {
+    const total = Number(totalBytes);
+    const limit = Number(maxRequestBytes);
+    const overhead = Number(overheadBytes);
+    if (!Number.isFinite(total) || total < 0) return false;
+    if (!Number.isFinite(limit) || limit < 0) return false;
+    if (limit === 0) return true;
+    if (!Number.isFinite(overhead) || overhead < 0) return false;
+    return total + overhead <= limit;
+  }
+
   function invalidResponse(message) {
     const error = new Error(message);
     error.code = "INVALID_API_RESPONSE";
@@ -56,6 +67,7 @@
 
   window.BioGuardApiContract = Object.freeze({
     assertEnrollmentResponse,
-    assertVerificationResponse
+    assertVerificationResponse,
+    isWithinRequestLimit
   });
 })();
