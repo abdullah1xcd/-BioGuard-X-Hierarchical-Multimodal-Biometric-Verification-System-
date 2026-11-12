@@ -1,6 +1,7 @@
-// Public runtime configuration for the static frontend.
-// Leave empty to use the safe demo-only preview.
-// Local API example: "http://127.0.0.1:8000".
-// Deployed API example: "https://your-api-host.example.com".
+// Public runtime configuration for the static Vanilla JS frontend.
+// Vercel deployments use the FastAPI service on the same origin by default.
+// Local development remains demo-only until an API origin is explicitly configured.
 // Never place API tokens, database credentials, or encryption keys in this file.
-window.BIOGUARD_API_BASE = window.BIOGUARD_API_BASE || "";
+const isVercelHost = /\\.vercel\\.app$/i.test(window.location.hostname);
+window.BIOGUARD_API_BASE = window.BIOGUARD_API_BASE || (isVercelHost ? window.location.origin : "");
+window.BIOGUARD_API_MAX_REQUEST_BYTES = window.BIOGUARD_API_MAX_REQUEST_BYTES || (isVercelHost ? 4 * 1024 * 1024 : 0);
