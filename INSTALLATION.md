@@ -45,4 +45,4 @@
 
    Open `http://localhost:5500`.
 
-Keep the encryption key stable between restarts and back it up securely. Never commit secrets or real biometric data. The API remains an experimental adapter and does not yet load the trained research model bundle; verification therefore stays NOT EVALUATED / PENDING. Do not use this prototype for real access-control decisions.
+Keep the encryption key stable between restarts and back it up securely. Never commit secrets or real biometric data. The experimental API loads a trusted, versioned model bundle from `BIOGUARD_MODEL_PATH` (default: `reports/bioguard_traditional_ml.joblib`). No trained bundle or consented biometric dataset is included in this repository, so verification remains NOT EVALUATED until a compatible bundle is trained and supplied. Even with a bundle, results are experimental and policy remains PENDING; no access decision is made. This API adapter does not restore the missing original research services or Streamlit application. Do not use this prototype for real access-control decisions.

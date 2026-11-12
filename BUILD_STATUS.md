@@ -11,7 +11,7 @@
 | Audit logging | Implemented | Metadata-only success/failure events; no raw samples, vectors, file names, or bearer tokens |
 | Local persistence | Implemented | SQLite for local development |
 | Vercel persistence | Implemented, not live-tested | PostgreSQL adapter via BIOGUARD_DATABASE_URL; requires a provisioned persistent database |
-| Vercel deployment config | Prepared | pyproject.toml entrypoint api.main:app; root vercel.json serves frontend/ and excludes non-runtime files |
+| Vercel deployment config | Prepared; deployment currently failing | pyproject.toml entrypoint api.main:app; root vercel.json serves frontend/; latest Vercel check failed and deployment logs are not available through GitHub |
 | Vercel request-size protection | Implemented | 4 MiB total API cap; frontend combined-file validation |
 | Face features | Implemented | HOG + LBP; API/training parity tested |
 | Voice features | Implemented | MFCC-style + ZCR + RMS; API/training parity tested |
@@ -26,17 +26,21 @@
 
 ## Verified CI
 
-[GitHub Actions run #164](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43185086215) passed on code commit `0c85d3810b22240ec436dcab3a46c3ca9fe13444`.
+[GitHub Actions run #171](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43186962473) passed on code commit `d785261b6181ae4b6efaf0a46738794e505213dc`.
 
 - Root and frontend npm installs and static build scripts: PASS
 - Docker API image build: PASS
 - Python compilation: PASS
-- Frontend Node tests: PASS (6 tests)
+- Frontend Node tests: PASS (9 tests)
 - Vanilla JavaScript syntax: PASS
 - Dependency consistency: PASS
 - Python API/ML suite: PASS (24 tests: 18 API + 6 ML)
 
-Runs #165 and #166 were triggered by documentation-only commits after the tested code commit; they were still running when this status note was prepared. No browser/device or live Vercel deployment test is included in CI.
+The run validates the combined multipart upload-size guard and its boundary tests. It does not include a browser/device or live Vercel/PostgreSQL test.
+
+## Deployment status
+
+The Vercel check for commit `d785261b6181ae4b6efaf0a46738794e505213dc` reported **failure** and supplied the command `npx vercel inspect dpl_FkGZLmaSXZuNVv2jkuH5omK5mh3w --logs`. Those deployment logs are not accessible through the connected GitHub integration, so the cause of this latest failure is not confirmed. A preceding deployment attempt explicitly reported a Vercel build-rate limit. Do not treat CI success as a successful deployment.
 
 ## Remaining owner-side deployment work
 
