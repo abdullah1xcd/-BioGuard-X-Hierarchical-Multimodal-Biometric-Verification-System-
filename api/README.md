@@ -18,7 +18,7 @@ Local development uses SQLite at `api/bioguard.sqlite3` unless `BIOGUARD_DATABAS
 
 ## Vercel deployment
 
-The repository root is the Vercel project root. `pyproject.toml` explicitly declares `api.main:app` as the FastAPI entrypoint; root `vercel.json` serves the static Vanilla frontend from `frontend/`. Do not set the Vercel Root Directory to `frontend` when deploying the API and frontend together.
+The repository root is the Vercel project root. Root `vercel.toml` defines a web service rooted at `frontend/` and an API service rooted at `api/`, with `main:app` as its FastAPI entrypoint. Requests to `/api/*` are routed to FastAPI; all other paths are routed to the Vanilla frontend. Do not change the Vercel project Root Directory to `frontend/` or `api/`.
 
 Configure these Vercel environment variables for Preview and Production as appropriate:
 
