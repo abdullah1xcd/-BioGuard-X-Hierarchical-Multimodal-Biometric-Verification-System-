@@ -35,7 +35,11 @@ function getApiConfigError(baseUrl) {
     if (parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
       return "BIOGUARD_API_BASE must contain only the API origin, without a path or credentials.";
     }
-    if (window.location.protocol === "https:" && parsed.protocol !== "https:") {
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+    if (!loopback && parsed.protocol !== "https:") {
+      return "Remote BioGuard API URLs must use HTTPS.";
+    }
+    if (window.location.protocol === "https:" && parsed.protocol !== "https:" && !loopback) {
       return "The deployed HTTPS frontend requires an HTTPS BioGuard API URL.";
     }
     return "";
