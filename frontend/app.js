@@ -6,13 +6,19 @@ const toast = document.getElementById("toast");
 const overviewView = document.getElementById("overviewView");
 const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
-const API_BASE_URL = String(window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "")).trim().replace(/\/+$/, "");
+
+const configuredApiBase = String(window.BIOGUARD_API_BASE || "").trim();
+const localApiDefault = ["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "";
+const API_BASE_URL = (configuredApiBase || localApiDefault).replace(/\/+$/, "");
+const API_IS_CONFIGURED = Boolean(API_BASE_URL);
+const API_CONFIG_ERROR = getApiConfigError(API_BASE_URL);
+const API_TIMEOUT_MS = 45000;
 let operatorApiToken = "";
 
 const pageCopy = {
   overview: ["Overview", "Here's what's happening across your biometric security environment."],
-  verification: ["Biometric verification", "Submit selected modalities for an experimental comparison; policy remains pending."],
-  enrollment: ["Identity enrollment", "Create an experimental identity profile and register encrypted feature templates."],
+  verification: ["Biometric verification", "Run experimental identity checks across face, voice, and fingerprint modalities."],
+  enrollment: ["Identity enrollment", "Create an identity record and register experimental biometric feature templates."],
   identities: ["Identity directory", "Manage enrolled identities, profile status, and biometric records."],
   analytics: ["Security analytics", "Explore verification performance, trends, and model evaluation metrics."],
   intelligence: ["Threat intelligence", "Investigate risk signals, suspicious behavior, and analyst findings."],
@@ -22,14 +28,20 @@ const pageCopy = {
   settings: ["Platform settings", "Configure security preferences and environment options."]
 };
 
-function apiBaseIsSecure() {
-  if (!API_BASE_URL) return false;
+function getApiConfigError(baseUrl) {
+  if (!baseUrl) return "";
   try {
-    const url = new URL(API_BASE_URL);
-    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    return url.protocol === "https:" || (loopback && url.protocol === "http:");
+    const parsed = new URL(baseUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "BIOGUARD_API_BASE must use HTTP or HTTPS.";
+    if (parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
+      return "BIOGUARD_API_BASE must contain only the API origin, without a path or credentials.";
+    }
+    if (window.location.protocol === "https:" && parsed.protocol !== "https:") {
+      return "The deployed HTTPS frontend requires an HTTPS BioGuard API URL.";
+    }
+    return "";
   } catch (_) {
-    return false;
+    return "BIOGUARD_API_BASE must be a valid absolute API origin URL.";
   }
 }
 
@@ -53,59 +65,69 @@ function setPage(page) {
     overviewView.hidden = false;
     overviewView.innerHTML = overviewMarkup;
     bindOverviewEvents();
+    window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
 
   overviewView.hidden = true;
   moduleView.hidden = false;
   if (page === "enrollment" || page === "verification") {
-    moduleView.innerHTML = window.BioGuardModules[page]();
+    moduleView.innerHTML = window.BioGuardModules[page]({ apiConfigured: API_IS_CONFIGURED });
     bindModuleEvents(page);
   } else {
-    moduleView.innerHTML = '<section class="panel coming-soon"><span class="coming-icon">⌁</span><h2>' + copy[0] + '</h2><p>This workspace is planned for the next BioGuard X frontend milestone. No live backend data is shown here yet.</p><span class="demo-chip"><i></i> PREVIEW</span></section>';
+    moduleView.innerHTML = '<section class="panel coming-soon"><span class="coming-icon">⌁</span><h2>' +
+      copy[0] + '</h2><p>This workspace is planned for a later BioGuard X milestone. No live backend data is shown here.</p>' +
+      '<span class="demo-chip"><i></i> PREVIEW</span></section>';
   }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function refreshApiHealth() {
-  const label = document.querySelector('.system-status small');
-  const pulse = document.querySelector('.system-status .status-pulse');
+  const label = document.querySelector(".system-status small");
+  const pulse = document.querySelector(".system-status .status-pulse");
   if (!label || !pulse) return;
-  if (!API_BASE_URL) {
-    label.textContent = 'API URL not configured';
-    pulse.style.backgroundColor = '#e6a34a';
+
+  if (!API_IS_CONFIGURED) {
+    label.textContent = "Demo mode · API URL not configured";
+    pulse.style.backgroundColor = "#e6a34a";
     return;
   }
-  if (!apiBaseIsSecure()) {
-    label.textContent = 'HTTPS required for remote API';
-    pulse.style.backgroundColor = '#e6a34a';
+  if (API_CONFIG_ERROR) {
+    label.textContent = "API configuration error";
+    pulse.style.backgroundColor = "#e06464";
     return;
   }
+
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 5000);
   try {
-    const response = await fetch(API_BASE_URL + '/api/v1/health', { method: 'GET', signal: controller.signal });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const response = await fetch(API_BASE_URL + "/api/v1/health", {
+      method: "GET",
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
     const health = await response.json();
-    if (health.status === 'ready') {
-      label.textContent = 'API connected · ' + health.verification_mode.replace(/_/g, ' ');
-      pulse.style.backgroundColor = '#29d5c2';
-    } else if (health.status === 'degraded') {
-      label.textContent = 'API connected · database unavailable';
-      pulse.style.backgroundColor = '#e06464';
+    if (health.status === "ready") {
+      label.textContent = "API ready · " + String(health.verification_mode || "model status unavailable").replace(/_/g, " ");
+      pulse.style.backgroundColor = "#29d5c2";
+    } else if (health.status === "degraded") {
+      label.textContent = "API connected · database unavailable";
+      pulse.style.backgroundColor = "#e06464";
     } else {
-      label.textContent = 'API connected · encryption configuration required';
-      pulse.style.backgroundColor = '#e6a34a';
+      label.textContent = "API connected · configuration required";
+      pulse.style.backgroundColor = "#e6a34a";
     }
   } catch (_) {
-    label.textContent = 'API unreachable · check backend and CORS';
-    pulse.style.backgroundColor = '#e06464';
+    label.textContent = "API unreachable · check backend and CORS";
+    pulse.style.backgroundColor = "#e06464";
   } finally {
     window.clearTimeout(timeout);
   }
 }
+
 function greeting() {
-  const hour = new Date().getHours();
   return "Welcome to BioGuard X";
 }
 
@@ -151,13 +173,22 @@ function selectedFiles(prefix, selected) {
 
 function validateFiles(files, errorElement) {
   const limits = { face: 10, voice: 20, fingerprint: 10 };
+  const extensions = {
+    face: [".png", ".jpg", ".jpeg"],
+    voice: [".wav", ".flac", ".ogg"],
+    fingerprint: [".png", ".jpg", ".jpeg"]
+  };
   const missing = Object.keys(files).filter((kind) => !files[kind]);
   const oversized = Object.keys(files).filter((kind) => files[kind] && files[kind].size > limits[kind] * 1024 * 1024);
   const wrongType = Object.keys(files).filter((kind) => {
-    if (!files[kind]) return false;
-    const type = files[kind].type || "";
-    return kind === "voice" ? !type.startsWith("audio/") : !type.startsWith("image/");
+    const file = files[kind];
+    if (!file) return false;
+    const mime = String(file.type || "").toLowerCase();
+    const extension = "." + String(file.name || "").split(".").pop().toLowerCase();
+    const mimeValid = kind === "voice" ? mime.startsWith("audio/") : mime.startsWith("image/");
+    return !mimeValid && !extensions[kind].includes(extension);
   });
+
   if (missing.length || oversized.length || wrongType.length) {
     const parts = [];
     if (missing.length) parts.push("Add a sample for: " + missing.join(", ") + ".");
@@ -170,125 +201,201 @@ function validateFiles(files, errorElement) {
   return true;
 }
 
-function showDemoPreview(page, form, feedback) {
-  feedback.hidden = false;
-  feedback.className = "form-feedback feedback-info";
-  if (page === "enrollment") {
-    feedback.textContent = "Offline demo preview only. No biometric files were uploaded, no feature extraction ran, and no identity or template was created.";
-    showToast("Offline demo preview — no data sent.");
-    return;
-  }
+function setFeedback(element, state, message) {
+  element.hidden = false;
+  element.className = "form-feedback feedback-" + state;
+  element.textContent = message;
+}
 
-  const result = document.getElementById("verificationResult");
-  const identityRef = form.elements.identityRef.value.trim();
-  const selected = selectedModalities("verify");
+function getApiErrorMessage(body, statusCode) {
+  const detail = body && (body.detail || body.error);
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item && (item.msg || item.message) || "Invalid request").join("; ");
+  }
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    return detail.message || detail.code || "The API rejected the request.";
+  }
+  return (body && body.message) || "API request failed with HTTP " + statusCode;
+}
+
+function renderDemoResult(page, form, selected) {
+  const result = document.getElementById(page === "enrollment" ? "enrollResult" : "verificationResult");
+  const reference = escapeHtml(form.elements.identityRef.value.trim());
+  const signals = selected.map(escapeHtml).join(" · ");
+  result.dataset.mode = "demo";
+
+  if (page === "enrollment") {
+    result.innerHTML =
+      '<div class="result-header"><div><span class="demo-chip"><i></i> LOCAL DEMO PREVIEW</span><h3>Enrollment preview prepared</h3>' +
+      '<p>Reference entered: ' + reference + '</p></div><span class="result-status status-demo">NO IDENTITY CREATED</span></div>' +
+      '<div class="result-warning"><strong>Demo only — no enrollment occurred.</strong><span>No biometric files were captured, uploaded, processed, or stored. No identity record or encrypted template was created.</span></div>' +
+      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Processing<strong>Not performed</strong></span></div>';
+    setFeedback(document.getElementById("enrollFeedback"), "info",
+      "Demo preview complete. No biometric data was sent and no identity was created.");
+  } else {
+    result.innerHTML =
+      '<div class="result-header"><div><span class="demo-chip"><i></i> LOCAL DEMO PREVIEW</span><h3>Verification preview prepared</h3>' +
+      '<p>Claimed reference: ' + reference + '</p></div><span class="result-status status-not-evaluated">NOT EVALUATED</span></div>' +
+      '<div class="result-warning"><strong>No biometric comparison or risk scoring was performed.</strong><span>This is a workflow preview only. No samples were uploaded or compared, and no access decision was made.</span></div>' +
+      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Policy<strong>Not evaluated</strong></span></div>';
+    setFeedback(document.getElementById("verifyFeedback"), "info",
+      "Demo preview complete. No biometric samples were compared and no access decision was made.");
+  }
   result.hidden = false;
-  result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> OFFLINE DEMO</span><h3>Verification not evaluated</h3><p>Reference: ' +
-    escapeHtml(identityRef || "Not provided") +
-    '</p></div><span class="result-status">NOT EVALUATED</span></div>' +
-    '<div class="result-warning"><strong>No biometric processing occurred.</strong><span>This offline preview sent no files, performed no comparison, generated no risk score, and made no access decision.</span></div>' +
-    '<div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") +
-    '</strong></span><span>Policy <strong>pending</strong></span></div>';
-  feedback.textContent = "Offline demo only. No biometric files were uploaded or processed.";
-  result.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  showToast("Offline demo preview — not evaluated.");
+}
+
+function renderEnrollmentApiResult(body, form, selected) {
+  const result = document.getElementById("enrollResult");
+  const identity = body && body.identity ? body.identity : {};
+  const reference = escapeHtml(identity.identity_ref || form.elements.identityRef.value.trim());
+  const modalities = Array.isArray(body && body.registered_modalities) ? body.registered_modalities : selected;
+  const notice = escapeHtml(body && body.notice || "The API stored experimental handcrafted features; this is not a validated biometric identity model.");
+  result.dataset.mode = "api";
+  result.innerHTML =
+    '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>Enrollment record created</h3>' +
+    '<p>Identity reference: ' + reference + '</p></div><span class="result-status status-experimental">STORED · EXPERIMENTAL</span></div>' +
+    '<div class="result-warning"><strong>Experimental feature templates only.</strong><span>' + notice + '</span></div>' +
+    '<div class="result-meta"><span>Registered modalities<strong>' + modalities.map(escapeHtml).join(" · ") + '</strong></span>' +
+    '<span>Audit event<strong>' + escapeHtml(body && body.audit_event_id || "Recorded by API") + '</strong></span></div>';
+  result.hidden = false;
+  setFeedback(document.getElementById("enrollFeedback"), "success",
+    "The experimental API created the enrollment record for " + reference + ". This does not establish a validated biometric identity.");
+  showToast("Experimental enrollment API completed.");
+}
+
+function renderVerificationApiResult(body, selected, reference) {
+  const result = document.getElementById("verificationResult");
+  const outcome = body && body.outcome;
+  const isMatch = outcome === "match";
+  const isNoMatch = outcome === "no_match";
+  const statusText = isMatch ? "EXPERIMENTAL MATCH" : isNoMatch ? "EXPERIMENTAL NO MATCH" : "NOT EVALUATED";
+  const statusClass = isMatch ? "status-match" : isNoMatch ? "status-no-match" : "status-not-evaluated";
+  const diagnostic = escapeHtml(JSON.stringify(body && body.diagnostic_similarity || {}, null, 2));
+  const message = escapeHtml(body && body.message ||
+    "A compatible calibrated model is required for comparison. Policy remains pending.");
+  result.dataset.mode = "api";
+  result.innerHTML =
+    '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>Verification request processed</h3>' +
+    '<p>Claimed reference: ' + escapeHtml(reference) + '</p></div><span class="result-status ' + statusClass + '">' + statusText + '</span></div>' +
+    '<div class="result-warning"><strong>No access decision was made.</strong><span>' + message + '</span></div>' +
+    '<details class="diagnostic-details"><summary>Diagnostic model output · not a calibrated risk score</summary><pre class="api-diagnostic">' + diagnostic + '</pre></details>' +
+    '<div class="result-meta"><span>Selected modalities<strong>' + selected.map(escapeHtml).join(" · ") + '</strong></span>' +
+    '<span>Policy decision<strong>' + escapeHtml(body && body.policy_decision || "pending") + '</strong></span>' +
+    '<span>Reason code<strong>' + escapeHtml(body && body.reason_code || "Not supplied") + '</strong></span></div>';
+  result.hidden = false;
+  setFeedback(document.getElementById("verifyFeedback"), "info",
+    isMatch || isNoMatch
+      ? "A trained model returned an experimental comparison only. Policy remains pending; this result cannot grant or deny access."
+      : "The API processed the request, but no compatible model result was available. No access decision was made.");
+  showToast(isMatch || isNoMatch ? "Experimental comparison completed." : "Verification processed · not evaluated.");
 }
 
 function bindModuleEvents(page) {
   const prefix = page === "enrollment" ? "enroll" : "verify";
   const form = document.getElementById(page === "enrollment" ? "enrollmentForm" : "verificationForm");
-  const demoPreviewButton = form.querySelector("[data-demo-preview]");
-  if (demoPreviewButton) {
-    demoPreviewButton.addEventListener("click", () => {
-      const feedback = document.getElementById(page === "enrollment" ? "enrollFeedback" : "verifyFeedback");
-      showDemoPreview(page, form, feedback);
+  const feedback = document.getElementById(page === "enrollment" ? "enrollFeedback" : "verifyFeedback");
+  const result = document.getElementById(page === "enrollment" ? "enrollResult" : "verificationResult");
+  const uploadError = document.getElementById(page === "enrollment" ? "enrollUploadError" : "verifyUploadError");
+  const modalityError = document.getElementById(prefix + "ModalityError");
+
+  if (API_IS_CONFIGURED) {
+    moduleView.querySelectorAll("[data-upload]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const file = input.files && input.files[0];
+        const label = moduleView.querySelector('[data-file-name="' + input.dataset.upload + '"]');
+        if (!label) return;
+        if (file) {
+          const max = input.dataset.upload === "voice" ? 20 : 10;
+          if (file.size > max * 1024 * 1024) {
+            input.value = "";
+            label.textContent = "File too large — max " + max + " MB";
+            label.classList.add("file-invalid");
+            uploadError.textContent = "The selected " + input.dataset.upload + " file exceeds the " + max + " MB limit.";
+            return;
+          }
+          label.textContent = file.name;
+          label.classList.remove("file-invalid");
+        } else {
+          label.textContent = "Choose a file";
+          label.classList.remove("file-invalid");
+        }
+        uploadError.textContent = "";
+      });
     });
   }
 
-  moduleView.querySelectorAll("[data-upload]").forEach((input) => {
-    input.addEventListener("change", () => {
-      const file = input.files && input.files[0];
-      const label = moduleView.querySelector('[data-file-name="' + input.dataset.upload + '"]');
-      if (!label) return;
-      if (file) {
-        const max = input.dataset.upload === "voice" ? 20 : 10;
-        if (file.size > max * 1024 * 1024) {
-          input.value = "";
-          label.textContent = "File too large — max " + max + " MB";
-          label.classList.add("file-invalid");
-          return;
-        }
-        label.textContent = file.name;
-        label.classList.remove("file-invalid");
-      } else {
-        label.textContent = "Choose a file";
-        label.classList.remove("file-invalid");
-      }
-    });
-  });
-
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const feedback = document.getElementById(page === "enrollment" ? "enrollFeedback" : "verifyFeedback");
-    const uploadError = document.getElementById(page === "enrollment" ? "enrollUploadError" : "verifyUploadError");
-    const selected = selectedModalities(prefix);
-    const files = selectedFiles(prefix, selected);
     moduleView.querySelectorAll(".field-error[data-error]").forEach((node) => { node.textContent = ""; });
+    uploadError.textContent = "";
+    modalityError.textContent = "";
     feedback.hidden = true;
     feedback.className = "form-feedback";
+    result.hidden = true;
+    result.innerHTML = "";
 
+    if (form.elements.identityRef) form.elements.identityRef.value = form.elements.identityRef.value.trim();
+    if (page === "enrollment") form.elements.fullName.value = form.elements.fullName.value.trim();
+    if (page === "verification") form.elements.purpose.value = form.elements.purpose.value.trim();
+    if (page === "enrollment" && form.elements.email.value) form.elements.email.value = form.elements.email.value.trim();
+
+    const selected = selectedModalities(prefix);
     let valid = form.reportValidity();
+
     if (!selected.length) {
-      uploadError.textContent = "Select at least one biometric modality.";
-      valid = false;
-    } else if (!validateFiles(files, uploadError)) {
+      modalityError.textContent = "Select at least one biometric modality.";
       valid = false;
     }
-    if (page === "enrollment") {
-      const ref = form.elements.identityRef;
-      if (ref.value.trim() && !/^[A-Za-z0-9_-]{3,32}$/.test(ref.value.trim())) {
-        moduleView.querySelector('[data-error="identityRef"]').textContent = "Use 3–32 letters, numbers, hyphens, or underscores.";
-        valid = false;
-      }
+
+    if (page === "enrollment" && form.elements.fullName.value.length < 2) {
+      moduleView.querySelector('[data-error="fullName"]').textContent = "Enter at least 2 non-space characters.";
+      valid = false;
     }
+
+    if (API_IS_CONFIGURED) {
+      const files = selectedFiles(prefix, selected);
+      if (selected.length && !validateFiles(files, uploadError)) valid = false;
+    }
+
     if (!valid) {
-      feedback.hidden = false;
-      feedback.classList.add("feedback-error");
-      feedback.textContent = "Please review the highlighted fields before continuing.";
+      setFeedback(feedback, "error", "Please review the highlighted fields before continuing.");
       return;
+    }
+
+    if (API_IS_CONFIGURED && API_CONFIG_ERROR) {
+      setFeedback(feedback, "error", API_CONFIG_ERROR + " No biometric data was sent.");
+      return;
+    }
+
+    let token = "";
+    if (API_IS_CONFIGURED) {
+      if (!operatorApiToken) {
+        operatorApiToken = (window.prompt("Enter the BioGuard API operator token. It stays in this page's memory only.") || "").trim();
+      }
+      if (!operatorApiToken) {
+        setFeedback(feedback, "error", "API token is required. No biometric data was sent.");
+        return;
+      }
+      token = operatorApiToken;
     }
 
     const submit = form.querySelector('button[type="submit"]');
-    const original = submit.innerHTML;
-    if (!API_BASE_URL) {
-      feedback.hidden = false;
-      feedback.className = "form-feedback feedback-error";
-      feedback.textContent = "The BioGuard API is not configured. You can use Offline demo preview without uploading files, or configure a hosted HTTPS API URL.";
-      return;
-    }
-    if (!apiBaseIsSecure()) {
-      feedback.hidden = false;
-      feedback.className = "form-feedback feedback-error";
-      feedback.textContent = "A remote API must use HTTPS. No biometric data was sent.";
-      return;
-    }
-    if (!operatorApiToken) {
-      operatorApiToken = window.prompt("Enter the BioGuard API operator token. It stays in this page's memory only.") || "";
-    }
-    if (!operatorApiToken) {
-      feedback.hidden = false;
-      feedback.className = "form-feedback feedback-error";
-      feedback.textContent = "API token is required. No biometric data was sent.";
-      return;
-    }
-
+    const originalButton = submit.innerHTML;
     submit.disabled = true;
-    submit.innerHTML = '<span class="button-spinner"></span> Processing…';
-    feedback.hidden = false;
-    feedback.className = "form-feedback feedback-info";
-    feedback.textContent = "Sending the selected samples to the configured BioGuard API over the protected connection…";
+    submit.innerHTML = '<span class="button-spinner"></span> ' + (API_IS_CONFIGURED ? "Processing…" : "Preparing preview…");
+    setFeedback(feedback, "info", API_IS_CONFIGURED
+      ? "Sending selected samples to the configured experimental BioGuard API…"
+      : "Preparing a local workflow preview. No biometric samples will be sent.");
 
     try {
+      if (!API_IS_CONFIGURED) {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        renderDemoResult(page, form, selected);
+        return;
+      }
+
+      const files = selectedFiles(prefix, selected);
       const payload = new FormData();
       payload.append("modalities", JSON.stringify(selected));
       selected.forEach((kind) => {
@@ -299,9 +406,9 @@ function bindModuleEvents(page) {
       if (page === "enrollment") {
         endpoint = "/api/v1/identities/enroll";
         payload.append("profile", JSON.stringify({
-          full_name: form.elements.fullName.value.trim(),
-          identity_ref: form.elements.identityRef.value.trim(),
-          email: form.elements.email.value.trim() || null
+          full_name: form.elements.fullName.value,
+          identity_ref: form.elements.identityRef.value,
+          email: form.elements.email.value || null
         }));
         payload.append("consent", JSON.stringify({
           granted: true,
@@ -309,62 +416,46 @@ function bindModuleEvents(page) {
         }));
       } else {
         endpoint = "/api/v1/verification/multimodal";
-        payload.append("claimed_identity_ref", form.elements.identityRef.value.trim());
+        payload.append("claimed_identity_ref", form.elements.identityRef.value);
         payload.append("authorization", JSON.stringify({
           authorized: true,
-          purpose: "Authorized coursework prototype verification"
+          purpose: form.elements.purpose.value
         }));
       }
 
-      const response = await fetch(API_BASE_URL + endpoint, {
-        method: "POST",
-        headers: { Authorization: "Bearer " + operatorApiToken },
-        body: payload
-      });
-      const body = await response.json().catch(() => ({}));
-      if (response.status === 401) {
-        operatorApiToken = "";
-        throw new Error("Operator token was rejected. Submit again to enter a valid token.");
-      }
-      if (!response.ok) {
-        const detail = body.detail || body.error || {};
-        throw new Error(detail.message || detail.code || "API request failed with HTTP " + response.status);
-      }
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      try {
+        const response = await fetch(API_BASE_URL + endpoint, {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token },
+          body: payload,
+          cache: "no-store",
+          credentials: "omit",
+          signal: controller.signal
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          if (response.status === 401) operatorApiToken = "";
+          throw new Error(getApiErrorMessage(body, response.status));
+        }
 
-      if (page === "enrollment") {
-        feedback.className = "form-feedback feedback-success";
-        feedback.textContent = "Identity enrolled. Reference: " + body.identity.identity_ref +
-          ". Stored modalities: " + body.registered_modalities.join(", ") +
-          ". " + (body.notice || "");
-        showToast("API enrollment completed.");
-      } else {
-        const result = document.getElementById("verificationResult");
-        result.hidden = false;
-        const modelOutcome = body.outcome === "match" ? "MODEL MATCH (EXPERIMENTAL)" :
-          body.outcome === "no_match" ? "MODEL NO MATCH (EXPERIMENTAL)" : "NOT EVALUATED";
-        const hasModelResult = body.outcome === "match" || body.outcome === "no_match";
-        result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> EXPERIMENTAL API</span><h3>' +
-          (hasModelResult ? "Experimental model result" : "Verification request processed") +
-          '</h3><p>Reference: ' + escapeHtml(form.elements.identityRef.value.trim()) +
-          '</p></div><span class="result-status">' + modelOutcome + '</span></div>' +
-          '<div class="result-warning"><strong>No access decision was made.</strong><span>' +
-          escapeHtml(body.message || "A validated model and approved operating policy are required before access decisions.") +
-          '</span></div><pre class="api-diagnostic">' + escapeHtml(JSON.stringify(body.diagnostic_similarity || {}, null, 2)) +
-          '</pre><div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") +
-          '</strong></span><span>Policy <strong>' + escapeHtml(body.policy_decision || "pending") + '</strong></span></div>';
-        feedback.className = "form-feedback feedback-info";
-        feedback.textContent = hasModelResult ?
-          "A trained model produced an experimental comparison only. The policy remains pending; no access is granted or denied." :
-          "The API processed the samples, but no calibrated model result is available.";
-        result.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        showToast(hasModelResult ? "Experimental model comparison completed." : "Verification processed — not evaluated.");
+        if (page === "enrollment") {
+          renderEnrollmentApiResult(body, form, selected);
+        } else {
+          renderVerificationApiResult(body, selected, form.elements.identityRef.value);
+        }
+      } finally {
+        window.clearTimeout(timeout);
       }
     } catch (error) {
-      feedback.className = "form-feedback feedback-error";
-      feedback.textContent = "API request failed: " + error.message + ". No demo success was substituted.";
+      const message = error && error.name === "AbortError"
+        ? "The API request timed out. Check the service and try again."
+        : "API request failed: " + (error && error.message || "Unknown error") + ". No demo success was substituted.";
+      setFeedback(feedback, "error", message);
     } finally {
       submit.disabled = false;
-      submit.innerHTML = original;
+      submit.innerHTML = originalButton;
     }
   });
 }
