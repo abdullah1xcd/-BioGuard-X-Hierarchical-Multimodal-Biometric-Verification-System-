@@ -6,13 +6,13 @@ const toast = document.getElementById("toast");
 const overviewView = document.getElementById("overviewView");
 const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
-const API_BASE_URL = window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "");
+const API_BASE_URL = String(window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "")).trim().replace(/\\/+$/, "");
 let operatorApiToken = "";
 
 const pageCopy = {
   overview: ["Overview", "Here's what's happening across your biometric security environment."],
-  verification: ["Biometric verification", "Run identity checks across face, voice, and fingerprint modalities."],
-  enrollment: ["Identity enrollment", "Create a trusted identity profile and register biometric samples."],
+  verification: ["Biometric verification", "Submit selected modalities for an experimental comparison; policy remains pending."],
+  enrollment: ["Identity enrollment", "Create an experimental identity profile and register encrypted feature templates."],
   identities: ["Identity directory", "Manage enrolled identities, profile status, and biometric records."],
   analytics: ["Security analytics", "Explore verification performance, trends, and model evaluation metrics."],
   intelligence: ["Threat intelligence", "Investigate risk signals, suspicious behavior, and analyst findings."],
@@ -21,6 +21,17 @@ const pageCopy = {
   access: ["Access control", "Manage roles, permissions, and privileged access policies."],
   settings: ["Platform settings", "Configure security preferences and environment options."]
 };
+
+function apiBaseIsSecure() {
+  if (!API_BASE_URL) return false;
+  try {
+    const url = new URL(API_BASE_URL);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return url.protocol === "https:" || (loopback && url.protocol === "http:");
+  } catch (_) {
+    return false;
+  }
+}
 
 function showToast(message) {
   toast.textContent = message;
@@ -62,6 +73,11 @@ async function refreshApiHealth() {
   if (!label || !pulse) return;
   if (!API_BASE_URL) {
     label.textContent = 'API URL not configured';
+    pulse.style.backgroundColor = '#e6a34a';
+    return;
+  }
+  if (!apiBaseIsSecure()) {
+    label.textContent = 'HTTPS required for remote API';
     pulse.style.backgroundColor = '#e6a34a';
     return;
   }
@@ -154,9 +170,40 @@ function validateFiles(files, errorElement) {
   return true;
 }
 
+function showDemoPreview(page, form, feedback) {
+  feedback.hidden = false;
+  feedback.className = "form-feedback feedback-info";
+  if (page === "enrollment") {
+    feedback.textContent = "Offline demo preview only. No biometric files were uploaded, no feature extraction ran, and no identity or template was created.";
+    showToast("Offline demo preview — no data sent.");
+    return;
+  }
+
+  const result = document.getElementById("verificationResult");
+  const identityRef = form.elements.identityRef.value.trim();
+  const selected = selectedModalities("verify");
+  result.hidden = false;
+  result.innerHTML = '<div class="result-header"><div><span class="demo-chip"><i></i> OFFLINE DEMO</span><h3>Verification not evaluated</h3><p>Reference: ' +
+    escapeHtml(identityRef || "Not provided") +
+    '</p></div><span class="result-status">NOT EVALUATED</span></div>' +
+    '<div class="result-warning"><strong>No biometric processing occurred.</strong><span>This offline preview sent no files, performed no comparison, generated no risk score, and made no access decision.</span></div>' +
+    '<div class="result-meta"><span>Selected signals <strong>' + selected.map(escapeHtml).join(" · ") +
+    '</strong></span><span>Policy <strong>pending</strong></span></div>';
+  feedback.textContent = "Offline demo only. No biometric files were uploaded or processed.";
+  result.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  showToast("Offline demo preview — not evaluated.");
+}
+
 function bindModuleEvents(page) {
   const prefix = page === "enrollment" ? "enroll" : "verify";
   const form = document.getElementById(page === "enrollment" ? "enrollmentForm" : "verificationForm");
+  const demoPreviewButton = form.querySelector("[data-demo-preview]");
+  if (demoPreviewButton) {
+    demoPreviewButton.addEventListener("click", () => {
+      const feedback = document.getElementById(page === "enrollment" ? "enrollFeedback" : "verifyFeedback");
+      showDemoPreview(page, form, feedback);
+    });
+  }
 
   moduleView.querySelectorAll("[data-upload]").forEach((input) => {
     input.addEventListener("change", () => {
@@ -216,7 +263,13 @@ function bindModuleEvents(page) {
     if (!API_BASE_URL) {
       feedback.hidden = false;
       feedback.className = "form-feedback feedback-error";
-      feedback.textContent = "The BioGuard API is not configured for this deployed website. Set window.BIOGUARD_API_BASE to your hosted HTTPS API URL before uploading biometric samples.";
+      feedback.textContent = "The BioGuard API is not configured. You can use Offline demo preview without uploading files, or configure a hosted HTTPS API URL.";
+      return;
+    }
+    if (!apiBaseIsSecure()) {
+      feedback.hidden = false;
+      feedback.className = "form-feedback feedback-error";
+      feedback.textContent = "A remote API must use HTTPS. No biometric data was sent.";
       return;
     }
     if (!operatorApiToken) {
@@ -233,7 +286,7 @@ function bindModuleEvents(page) {
     submit.innerHTML = '<span class="button-spinner"></span> Processing…';
     feedback.hidden = false;
     feedback.className = "form-feedback feedback-info";
-    feedback.textContent = "Sending the selected samples to the local BioGuard API over your configured connection…";
+    feedback.textContent = "Sending the selected samples to the configured BioGuard API over the protected connection…";
 
     try {
       const payload = new FormData();
@@ -269,6 +322,10 @@ function bindModuleEvents(page) {
         body: payload
       });
       const body = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        operatorApiToken = "";
+        throw new Error("Operator token was rejected. Submit again to enter a valid token.");
+      }
       if (!response.ok) {
         const detail = body.detail || body.error || {};
         throw new Error(detail.message || detail.code || "API request failed with HTTP " + response.status);
