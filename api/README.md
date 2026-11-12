@@ -27,7 +27,7 @@ OpenAPI docs: http://127.0.0.1:8000/docs
 - Set `BIOGUARD_MODEL_PATH` to `reports/bioguard_traditional_ml.joblib` after running the training pipeline. The API loads the versioned bundle and can return experimental `match` / `no_match` results for face-only, voice-only, early-fusion scoring, and face-first hierarchical routing when the corresponding trained models are present.
 - `policy_decision` deliberately remains `pending` for every result. A model output is not an authorization decision. The bundle must be trained on consented representative data and independently reviewed before any operational use.
 - Audit records contain operation metadata, not raw samples or feature vectors.
-- Raw uploads are processed in memory and are not persisted.
+- The application does not persist raw uploads in its database or audit log. Starlette's multipart parser may temporarily spool larger uploads to API-host temporary storage until request cleanup; restrict access to that storage and manage it securely.
 
 ## API
 
