@@ -13,7 +13,7 @@
 
 [GitHub Actions run #171](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43186962473) passed on code commit `d785261b6181ae4b6efaf0a46738794e505213dc`: 9 frontend tests and 24 Python API/ML tests, plus installs/build scripts, Docker image build, Python compilation, JS syntax, and dependency checks. See [TEST_REPORT.md](TEST_REPORT.md).
 
-The deployment configuration has been migrated to root `vercel.toml` with separate frontend and API services. The Vercel check for the configuration commit is pending; no successful live deployment, live PostgreSQL connection, browser visual check, webcam/microphone test, or real-data biometric evaluation is claimed.
+The deployment configuration has been migrated to root `vercel.toml` with separate frontend and API services. The Vercel check for configuration commit `ea5537e1302b21d710f683cbb181892047cb975f` reports success. The live API health endpoint, environment variables, PostgreSQL connection, browser visual check, webcam/microphone test, and real-data biometric evaluation are still unverified.
 
 ## Important scope boundaries
 
