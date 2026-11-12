@@ -35,7 +35,7 @@ Open http://localhost:5500. By default, local development remains demo-only. To 
 
 ## Vercel deployment
 
-Import the repository using branch `frontend/vanilla-js-redesign` and keep the Vercel Root Directory at the repository root (`.`). The root `vercel.json` and `pyproject.toml` configure the static frontend and FastAPI entrypoint together. Selecting `frontend` as the Vercel Root Directory deploys only the static site and omits the API.
+Import the repository using branch `frontend/vanilla-js-redesign` and keep the Vercel project Root Directory at the repository root (`.`). The root `vercel.toml` defines two services: the static frontend rooted at `frontend/` and FastAPI rooted at `api/` with entrypoint `main:app`. It routes `/api/*` to FastAPI and other paths to the frontend. Selecting `frontend/` or `api/` as the Vercel project Root Directory bypasses this multi-service setup.
 
 On a `.vercel.app` hostname, `frontend/config.js` defaults the API origin to the same Vercel deployment. For a custom domain, set `window.BIOGUARD_API_BASE` to the same HTTPS origin. The UI caps the combined selected sample size to 4 MiB minus multipart overhead to stay below Vercel's function request limit.
 
