@@ -2,5 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "buildCommand": null,
-  "outputDirectory": "frontend"
+  "outputDirectory": "frontend",
+  "functions": {
+    "api/main.py": {
+      "excludeFiles": "{tests/**,scripts/**,datasets/**,reports/**,.github/**,frontend/**,*.md}"
+    }
+  }
 }
