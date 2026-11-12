@@ -28,3 +28,20 @@ One upstream warning remains: Starlette currently deprecates using `httpx` with 
 - Production deployment hardening, key management, rate limiting, retention/deletion policy, and independent security review.
 
 The trained-model API integration, optional non-live fingerprint classifier, three-modality fusion, and UI result handling are implemented and covered by synthetic tests. This does not establish real-world biometric accuracy or authorize access-control use.
+
+## Later completed CI run — run #107
+
+- Workflow: [BioGuard API tests, run #107](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43123791346)
+- Result: **PASS**
+- The job completed both npm installs, both static build scripts, the Docker image build, Python compilation, Vanilla JavaScript syntax checks, dependency consistency, and the API/ML test step.
+- Pytest log: **18 passed, 1 warning in 4.56 seconds**.
+
+This run predates the API/frontend hardening changes recorded in `BUILD_STATUS.md`; it is not evidence that the current branch head has passed CI.
+
+## Current branch follow-up — awaiting CI confirmation
+
+- Current test inventory: **21 tests** (15 API + 6 ML).
+- Three new API regression tests cover invalid Fernet-key health reporting, metadata-only audit records for failed enrollment, and feature-version mismatch returning NOT EVALUATED.
+- JavaScript syntax parsing for the current `frontend/app.js` and `frontend/modules.js` passed during this update.
+- Python tests and compilation have not been rerun locally in this session. The latest post-change GitHub Actions result could not be confirmed.
+- No browser visual/interaction or webcam/microphone test was performed.
