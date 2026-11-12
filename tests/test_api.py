@@ -21,6 +21,8 @@ def test_health_reports_calibration_gate(monkeypatch, tmp_path):
         response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json()["verification_mode"] == "not_evaluated_until_calibrated"
+    assert response.json()["database_connected"] is True
+    assert response.json()["encryption_configured"] is True
 
 
 def test_protected_enrollment_rejects_missing_auth(monkeypatch, tmp_path):
