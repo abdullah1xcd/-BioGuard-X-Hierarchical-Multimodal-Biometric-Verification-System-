@@ -1,5 +1,13 @@
 # Remaining work to complete BioGuard X validation
 
+## Deployment integration blockers (owner configuration required)
+
+1. Choose and create an HTTPS backend host, then deploy the repository Dockerfile. No hosting-provider connection is available in this repository session.
+2. Configure backend-only secrets: `BIOGUARD_API_TOKEN`, a generated stable `BIOGUARD_ENCRYPTION_KEY`, and `BIOGUARD_CORS_ORIGINS` with the exact Vercel production origin.
+3. Attach persistent storage for the current SQLite database. This is only a temporary prototype arrangement; the requested PostgreSQL migration is not implemented.
+4. Put the backend's public HTTPS origin in `frontend/config.js`, then redeploy the Vercel frontend.
+5. Supply Firebase project configuration and backend Admin credentials before Firebase authentication can be integrated and tested. Never put Admin credentials in frontend files.
+
 ## Required owner-side steps
 
 1. Collect consented face and voice samples for at least two participants, with 10+ matched filename stems per participant. For three-modality fusion, add a same-stem fingerprint image for every paired sample.
