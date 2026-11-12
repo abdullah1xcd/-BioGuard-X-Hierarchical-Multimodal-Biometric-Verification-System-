@@ -32,6 +32,72 @@ def test_protected_enrollment_rejects_missing_auth(monkeypatch, tmp_path):
     assert response.status_code == 401
 
 
+def test_health_rejects_invalid_encryption_key(monkeypatch, tmp_path):
+    configure(monkeypatch, tmp_path)
+    monkeypatch.setenv("BIOGUARD_ENCRYPTION_KEY", "not-a-valid-fernet-key")
+    with TestClient(main.app) as client:
+        response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "configuration_required"
+    assert response.json()["encryption_configured"] is False
+
+
+def test_failed_enrollment_is_audited_without_request_data(monkeypatch, tmp_path):
+    import json
+
+    configure(monkeypatch, tmp_path)
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/v1/identities/enroll",
+            headers=headers,
+            data={
+                "profile": json.dumps({"full_name": "Test Person", "identity_ref": "BG-FAIL-01"}),
+                "modalities": json.dumps(["face"]),
+                "consent": json.dumps({"granted": True, "policy_version": "test-v1"}),
+            },
+        )
+    assert response.status_code == 400
+    assert response.headers.get("X-Request-ID")
+    with main.db() as conn:
+        event = conn.execute(
+            "SELECT actor, action, identity_ref, modalities, outcome FROM audit_events"
+        ).fetchone()
+    assert tuple(event) == ("api-operator", "identity_enrollment_failed", None, "[]", "http_400")
+
+
+def test_feature_version_mismatch_is_not_evaluated(monkeypatch, tmp_path):
+    import json
+    import cv2
+
+    configure(monkeypatch, tmp_path)
+    with main.db() as conn:
+        conn.execute(
+            "INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)",
+            ("BG-MISMATCH", "Test Person", None, main.utc_now(), "test-v1"),
+        )
+    main.store_template("BG-MISMATCH", "face", np.asarray([0.1, 0.2, 0.3], dtype=np.float32))
+    sample = np.random.default_rng(19).integers(0, 256, (160, 160), dtype=np.uint8)
+    ok, encoded = cv2.imencode(".png", sample)
+    assert ok
+    headers = {"Authorization": "Bearer test-operator-secret"}
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/v1/verification/multimodal",
+            headers=headers,
+            data={
+                "claimed_identity_ref": "BG-MISMATCH",
+                "modalities": json.dumps(["face"]),
+                "authorization": json.dumps({"authorized": True, "purpose": "Feature mismatch test"}),
+            },
+            files={"face_sample": ("face.png", encoded.tobytes(), "image/png")},
+        )
+    assert response.status_code == 200, response.text
+    assert response.json()["outcome"] == "not_evaluated"
+    assert response.json()["reason_code"] == "FEATURE_VERSION_MISMATCH"
+    assert response.json()["policy_decision"] == "pending"
+
+
 def test_feature_vectors_are_encrypted_and_round_trip(monkeypatch, tmp_path):
     configure(monkeypatch, tmp_path)
     with main.db() as conn:
