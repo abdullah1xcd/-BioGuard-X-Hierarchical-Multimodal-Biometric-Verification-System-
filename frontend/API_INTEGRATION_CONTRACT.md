@@ -4,7 +4,7 @@
 
 The Vanilla JavaScript enrollment and verification forms are wired to the experimental FastAPI adapter in `api/main.py`. They use only the three implemented routes below. Identity directory, analytics, risk scoring, audit browsing, notifications, and access-control endpoints are not implemented.
 
-On any host, a blank `BIOGUARD_API_BASE` enables a demo-only workflow preview: biometric file inputs are not rendered and no sample is transmitted. Local API mode is opt-in by setting `BIOGUARD_API_BASE` to `http://127.0.0.1:8000` in `frontend/config.js`. If a configured API is unreachable or returns an error, the UI shows the error and does not silently substitute a successful demo result.
+On any host, a blank or invalid `BIOGUARD_API_BASE` enables a demo-only workflow preview: biometric file inputs are not rendered and no sample is transmitted. Local API mode is opt-in by setting `BIOGUARD_API_BASE` to `http://127.0.0.1:8000` in `frontend/config.js`. If a configured API is unreachable or returns an error, the UI shows the error and does not silently substitute a successful demo result.
 
 ## Authentication and transport
 

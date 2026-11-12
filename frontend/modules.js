@@ -52,7 +52,7 @@
         '<div><strong>Configured API mode</strong><p>Submissions use the configured API URL and require operator authentication. A configured URL does not guarantee that the service is reachable.</p></div></div>';
     }
     return '<div class="module-mode-banner module-mode-demo" role="note"><span class="module-mode-icon">◇</span>' +
-      '<div><strong>Demo-only preview</strong><p>No API URL is configured. This preview never sends biometric samples and does not create identities, compare biometrics, calculate risk, or make access decisions.</p></div></div>';
+      '<div><strong>Demo-only preview</strong><p>No valid API connection is configured. This preview never sends biometric samples and does not create identities, compare biometrics, calculate risk, or make access decisions.</p></div></div>';
   }
 
   function heading(kicker, title, subtitle, apiConfigured) {

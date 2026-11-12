@@ -27,7 +27,7 @@ Open http://localhost:5500. With the default empty API URL, the frontend starts 
 
 ## Frontend modes
 
-- **Demo-only mode:** when no API URL is configured on any host, the enrollment and verification forms remain usable as workflow previews. Biometric file inputs are not shown. The preview does not capture, upload, process, store, or compare biometric samples; it does not create an identity, calculate a risk score, or make an access decision.
+- **Demo-only mode:** when no valid API URL is configured (blank or invalid), the enrollment and verification forms remain usable as workflow previews. Biometric file inputs are not shown. The preview does not capture, upload, process, store, or compare biometric samples; it does not create an identity, calculate a risk score, or make an access decision.
 - **Configured API mode:** set window.BIOGUARD_API_BASE in frontend/config.js to the HTTPS origin of a remote FastAPI service (HTTP is permitted only for localhost/loopback development). The forms then require files for every selected modality, validate file types and sizes, and submit only the selected files. A configured URL is not proof that the API is online; failed requests show an error and never fall back to a fake success.
 - Face, voice, and fingerprint are selectable. At least one modality is required; fingerprint is optional. Face is preselected as a starting choice.
 - Enrollment requires identity details and an explicit consent acknowledgement. Verification requires a claimed identity, a stated purpose, and an authorization acknowledgement.
