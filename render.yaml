@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: bioguard-x-api
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/v1/health
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BIOGUARD_API_TOKEN
+        generateValue: true
+      - key: BIOGUARD_ENCRYPTION_KEY
+        generateValue: true
+      - key: BIOGUARD_DB_PATH
+        value: /data/bioguard.sqlite3
+      - key: BIOGUARD_CORS_ORIGINS
+        sync: false
+    disk:
+      name: bioguard-x-data
+      mountPath: /data
+      sizeGB: 1
