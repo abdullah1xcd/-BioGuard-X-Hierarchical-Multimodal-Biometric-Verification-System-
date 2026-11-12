@@ -46,7 +46,7 @@ The earlier Vercel deployment failed, but its detailed logs were not available t
 
 1. Provision a persistent PostgreSQL database through the Vercel Marketplace and set BIOGUARD_DATABASE_URL in Vercel Preview/Production environment variables.
 2. Set BIOGUARD_API_TOKEN and BIOGUARD_ENCRYPTION_KEY as server-side secrets; never expose them in frontend/config.js.
-3. Deploy with Vercel Root Directory set to the repository root. Do not select frontend/ when the API is required.
+3. Keep the Vercel project Root Directory at the repository root so `vercel.toml` can define both services.
 4. Confirm GET /api/v1/health returns status ready, database_backend postgresql, database_connected true, and persistent_storage_configured true.
 5. Supply a trusted trained model artifact only after collecting and evaluating consented, representative, properly separated data. Until then, verification correctly returns NOT EVALUATED.
 
