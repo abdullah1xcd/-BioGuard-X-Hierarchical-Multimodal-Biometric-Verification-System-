@@ -2,8 +2,10 @@
   "name": "bioguard-x-static-site",
   "version": "1.0.0",
   "private": true,
-  "description": "BioGuard X static Vanilla JavaScript frontend; no npm dependencies.",
+  "description": "BioGuard X Vanilla JavaScript frontend with a Node.js development server and API proxy for Google AI Studio.",
   "scripts": {
-    "build": "node -e \"process.exit(0)\""
+    "dev": "node scripts/ai-studio-server.mjs",
+    "start": "node scripts/ai-studio-server.mjs",
+    "build": "node --check scripts/ai-studio-server.mjs && node -e "process.exit(0)""
   }
 }
