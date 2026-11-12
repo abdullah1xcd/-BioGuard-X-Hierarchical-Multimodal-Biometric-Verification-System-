@@ -110,3 +110,24 @@ test("verification response accepts not-evaluated and experimental outcomes only
     assert.equal(caught && caught.code, "INVALID_API_RESPONSE");
   }
 });
+function loadRuntimeConfig(hostname, origin) {
+  const context = { window: { location: { hostname, origin } } };
+  const source = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
+  vm.runInNewContext(source, context, { filename: "config.js" });
+  return context.window;
+}
+
+test("Vercel host defaults to same-origin API and enforces the combined request cap", () => {
+  const config = loadRuntimeConfig("bioguard-demo.vercel.app", "https://bioguard-demo.vercel.app");
+  assert.equal(config.BIOGUARD_API_BASE, "https://bioguard-demo.vercel.app");
+  assert.equal(config.BIOGUARD_API_MAX_REQUEST_BYTES, 4 * 1024 * 1024);
+});
+
+test("local and custom hosts remain opt-in for API requests", () => {
+  const local = loadRuntimeConfig("localhost", "http://localhost:5500");
+  const custom = loadRuntimeConfig("bioguard.example.com", "https://bioguard.example.com");
+  assert.equal(local.BIOGUARD_API_BASE, "");
+  assert.equal(local.BIOGUARD_API_MAX_REQUEST_BYTES, 0);
+  assert.equal(custom.BIOGUARD_API_BASE, "");
+  assert.equal(custom.BIOGUARD_API_MAX_REQUEST_BYTES, 0);
+});
