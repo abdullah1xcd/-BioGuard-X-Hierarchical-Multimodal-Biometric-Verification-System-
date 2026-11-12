@@ -185,6 +185,10 @@ function validateFiles(files, errorElement) {
   const missing = Object.keys(files).filter((kind) => !files[kind]);
   const empty = Object.keys(files).filter((kind) => files[kind] && files[kind].size === 0);
   const oversized = Object.keys(files).filter((kind) => files[kind] && files[kind].size > limits[kind] * 1024 * 1024);
+  const totalBytes = Object.values(files).reduce((sum, file) => sum + (file ? file.size : 0), 0);
+  const maxRequestBytes = Number(window.BIOGUARD_API_MAX_REQUEST_BYTES || 0);
+  const maxSampleBytes = maxRequestBytes > 0 ? maxRequestBytes - 128 * 1024 : 0;
+  const totalTooLarge = maxSampleBytes > 0 && totalBytes > maxSampleBytes;
   const wrongType = Object.keys(files).filter((kind) => {
     const file = files[kind];
     if (!file) return false;
@@ -199,7 +203,8 @@ function validateFiles(files, errorElement) {
     const parts = [];
     if (missing.length) parts.push("Add a sample for: " + missing.join(", ") + ".");
     if (empty.length) parts.push("The selected sample is empty: " + empty.join(", ") + ".");
-    if (oversized.length) parts.push("File exceeds the size limit: " + oversized.join(", ") + ".");
+    if (oversized.length) parts.push("File exceeds the per-modality size limit: " + oversized.join(", ") + ".");
+    if (totalTooLarge) parts.push("Combined sample files exceed the Vercel request limit. Keep the selected files below 3.88 MiB total.");
     if (wrongType.length) parts.push("Unsupported file type for: " + wrongType.join(", ") + ".");
     errorElement.textContent = parts.join(" ");
     return false;
