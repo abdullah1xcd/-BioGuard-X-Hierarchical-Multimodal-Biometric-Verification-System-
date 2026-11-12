@@ -6,6 +6,8 @@ The Vanilla JavaScript enrollment and verification forms are wired to the experi
 
 On any host, a blank or invalid `BIOGUARD_API_BASE` enables a demo-only workflow preview: biometric file inputs are not rendered and no sample is transmitted. Local API mode is opt-in by setting `BIOGUARD_API_BASE` to `http://127.0.0.1:8000` in `frontend/config.js`. Remote API origins must use HTTPS. If a configured API times out, is unreachable, or returns a route-level 404 without an application error code, or a 5xx response, the UI shows the error and offers an explicit offline preview. That preview performs no additional request and does not assume the earlier request failed; its outcome is marked unknown, so backend/audit records must be checked before retrying. Authentication, authorization, and request-validation errors remain visible without an offline-success fallback.
 
+Before displaying a successful API result, the frontend validates the response shape in `frontend/api-contract.js`. Enrollment must confirm the exact requested identity reference, selected modalities, enrolled status, and audit event. Verification accepts only `match`, `no_match`, or `not_evaluated`, and requires `policy_decision: pending`. A malformed or incomplete 2xx response is treated as an unconfirmed outcome; the offline preview makes no second request and directs the operator to check backend/audit records before retrying.
+
 ## Authentication and transport
 
 - `GET /api/v1/health` is unauthenticated.

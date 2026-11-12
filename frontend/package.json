@@ -4,6 +4,7 @@
   "private": true,
   "description": "BioGuard X static Vanilla JavaScript frontend; no npm dependencies.",
   "scripts": {
-    "build": "node -e \"process.exit(0)\""
+    "build": "node -e \"process.exit(0)\"",
+    "test": "node --test"
   }
 }

@@ -25,6 +25,16 @@ py -m http.server 5500
 
 Open http://localhost:5500. With the default empty API URL, the frontend starts in demo-only mode. To connect a local API, set window.BIOGUARD_API_BASE to "http://127.0.0.1:8000" in frontend/config.js before loading the page. The first API submission asks for the operator token; it stays in page memory only and is cleared after an authentication failure. The token prompt is a coursework development convenience, not a production authentication design.
 
+## Frontend checks
+
+Run the Vanilla JavaScript module and API-response contract tests from the repository root:
+
+~~~bash
+npm --prefix frontend test
+~~~
+
+The tests use Node's built-in test runner; no frontend framework or test dependency is added.
+
 ## Frontend modes
 
 - **Demo-only mode:** when no valid API URL is configured (blank or invalid), the enrollment and verification forms remain usable as workflow previews. Biometric file inputs are not shown. The preview does not capture, upload, process, store, or compare biometric samples; it does not create an identity, calculate a risk score, or make an access decision.
@@ -32,6 +42,7 @@ Open http://localhost:5500. With the default empty API URL, the frontend starts 
 - Face, voice, and fingerprint are selectable. At least one modality is required; fingerprint is optional. Face is preselected as a starting choice.
 - Enrollment requires identity details and an explicit consent acknowledgement. Verification requires a claimed identity, a stated purpose, and an authorization acknowledgement.
 - Loading, success, validation, timeout, and API error states are shown in the module UI.
+- Successful API responses are checked against the documented response contract. An incomplete or malformed 2xx response is treated as unconfirmed, not as success; the offline preview makes no retry and asks the operator to check backend records first.
 
 ## Experimental backend boundary
 

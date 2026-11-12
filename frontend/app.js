@@ -226,6 +226,53 @@ function getApiErrorMessage(body, statusCode) {
   return (body && body.message) || "API request failed with HTTP " + statusCode;
 }
 
+function validateFormFields(form, page) {
+  let valid = true;
+  const setError = (name, message) => {
+    const node = moduleView.querySelector('[data-error="' + name + '"]');
+    if (node) node.textContent = message;
+  };
+
+  const identityRef = form.elements.identityRef;
+  if (!identityRef.checkValidity()) {
+    setError("identityRef", identityRef.value
+      ? "Use 3–32 letters, numbers, hyphens, or underscores."
+      : "Enter an identity reference.");
+    valid = false;
+  }
+
+  if (page === "enrollment") {
+    const fullName = form.elements.fullName;
+    if (!fullName.checkValidity() || fullName.value.length < 2) {
+      setError("fullName", "Enter at least 2 non-space characters.");
+      valid = false;
+    }
+    const email = form.elements.email;
+    if (email.value && !email.checkValidity()) {
+      setError("email", "Enter a valid email address or leave this field empty.");
+      valid = false;
+    }
+    if (!form.elements.consent.checked) {
+      setError("consent", "Confirm that the person has explicitly consented.");
+      valid = false;
+    }
+  } else {
+    const purpose = form.elements.purpose;
+    if (!purpose.checkValidity()) {
+      setError("purpose", purpose.value
+        ? "Use a verification purpose between 3 and 200 characters."
+        : "Enter a verification purpose.");
+      valid = false;
+    }
+    if (!form.elements.authorization.checked) {
+      setError("authorization", "Confirm that you are authorized to submit these samples.");
+      valid = false;
+    }
+  }
+
+  return valid;
+}
+
 function renderDemoResult(page, form, selected, previousRequestUnconfirmed) {
   const result = document.getElementById(page === "enrollment" ? "enrollResult" : "verificationResult");
   const reference = escapeHtml(form.elements.identityRef.value.trim());
@@ -366,15 +413,11 @@ function bindModuleEvents(page) {
     if (page === "enrollment" && form.elements.email.value) form.elements.email.value = form.elements.email.value.trim();
 
     const selected = selectedModalities(prefix);
-    let valid = form.reportValidity();
+    let valid = validateFormFields(form, page);
+    if (!valid) form.reportValidity();
 
     if (!selected.length) {
       modalityError.textContent = "Select at least one biometric modality.";
-      valid = false;
-    }
-
-    if (page === "enrollment" && form.elements.fullName.value.length < 2) {
-      moduleView.querySelector('[data-error="fullName"]').textContent = "Enter at least 2 non-space characters.";
       valid = false;
     }
 
@@ -454,30 +497,40 @@ function bindModuleEvents(page) {
           credentials: "omit",
           signal: controller.signal
         });
-        const body = await response.json().catch(() => ({}));
+        const body = await response.json().catch(() => null);
         if (!response.ok) {
           if (response.status === 401) operatorApiToken = "";
           const apiError = new Error(getApiErrorMessage(body, response.status));
           apiError.status = response.status;
-          apiError.code = body.detail && typeof body.detail === "object" ? body.detail.code || "" : "";
+          apiError.code = body && body.detail && typeof body.detail === "object" ? body.detail.code || "" : "";
           throw apiError;
         }
 
+        if (!window.BioGuardApiContract) {
+          const contractError = new Error("The frontend API response validator did not load. The request outcome is unconfirmed.");
+          contractError.code = "INVALID_API_RESPONSE";
+          throw contractError;
+        }
         if (page === "enrollment") {
+          window.BioGuardApiContract.assertEnrollmentResponse(body, form.elements.identityRef.value, selected);
           renderEnrollmentApiResult(body, form, selected);
         } else {
+          window.BioGuardApiContract.assertVerificationResponse(body);
           renderVerificationApiResult(body, selected, form.elements.identityRef.value);
         }
       } finally {
         window.clearTimeout(timeout);
       }
     } catch (error) {
+      const unconfirmedResponse = error && error.code === "INVALID_API_RESPONSE";
       const message = error && error.name === "AbortError"
-        ? "The API request timed out. Check the service and try again."
-        : "API request failed: " + (error && error.message || "Unknown error") + ". No demo success was substituted.";
+        ? "The API request timed out. Its outcome is unknown; check backend records before retrying."
+        : unconfirmedResponse
+          ? (error.message || "The API returned an incomplete response. Check backend records before retrying.") + " No demo success was substituted."
+          : "API request failed: " + (error && error.message || "Unknown error") + ". No demo success was substituted.";
       setFeedback(feedback, "error", message);
       const backendUnavailable = error && (
-        error.name === "AbortError" || error instanceof TypeError ||
+        error.name === "AbortError" || error instanceof TypeError || unconfirmedResponse ||
         (error.status === 404 && !error.code) || error.status >= 500
       );
       if (API_CAN_SEND && backendUnavailable) {
