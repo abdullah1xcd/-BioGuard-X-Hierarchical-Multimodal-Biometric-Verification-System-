@@ -11,7 +11,7 @@
 | Audit logging | Implemented | Metadata-only success/failure events; no raw samples, vectors, file names, or bearer tokens |
 | Local persistence | Implemented | SQLite for local development |
 | Vercel persistence | Implemented, not live-tested | PostgreSQL adapter via BIOGUARD_DATABASE_URL; requires a provisioned persistent database |
-| Vercel deployment config | Prepared; deployment currently failing | pyproject.toml entrypoint api.main:app; root vercel.json serves frontend/; latest Vercel check failed and deployment logs are not available through GitHub |
+| Vercel deployment config | Multi-service configuration committed; deployment pending verification | Root vercel.toml routes the Vanilla frontend service (frontend/) and FastAPI service (api/, main:app); API has its own runtime requirements file; latest Vercel check is pending |
 | Vercel request-size protection | Implemented | 4 MiB total API cap; frontend combined-file validation |
 | Face features | Implemented | HOG + LBP; API/training parity tested |
 | Voice features | Implemented | MFCC-style + ZCR + RMS; API/training parity tested |
