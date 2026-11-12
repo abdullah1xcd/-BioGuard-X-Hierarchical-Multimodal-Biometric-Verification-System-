@@ -14,7 +14,7 @@
 - Bearer-token operator authentication with constant-time token comparison.
 - Server-side modality matching, JSON validation, file size checks, image/audio decoding, and identity-reference validation.
 - CORS defaults to the local development frontend origins.
-- Audit events record actor, action, identity reference, selected modalities, outcome, timestamp, and request ID. Raw samples and feature vectors are not included in audit events.
+- Successful enrollment commits its identity, encrypted templates, and audit event atomically. Successful verification writes a metadata-only audit event. Failed enrollment/verification attempts record actor classification, action, HTTP outcome, timestamp, and request ID only; they omit identity references, request bodies, file names, raw samples, feature vectors, and bearer tokens.
 - Verification is hard-gated to NOT EVALUATED / PENDING; diagnostic similarity must never grant or deny access.
 
 ## Limitations and required production work
