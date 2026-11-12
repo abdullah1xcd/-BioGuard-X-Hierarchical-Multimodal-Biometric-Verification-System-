@@ -74,8 +74,11 @@ async function refreshApiHealth() {
     if (health.status === 'ready') {
       label.textContent = 'API connected · ' + health.verification_mode.replace(/_/g, ' ');
       pulse.style.backgroundColor = '#29d5c2';
+    } else if (health.status === 'degraded') {
+      label.textContent = 'API connected · database unavailable';
+      pulse.style.backgroundColor = '#e06464';
     } else {
-      label.textContent = 'API connected · configuration required';
+      label.textContent = 'API connected · encryption configuration required';
       pulse.style.backgroundColor = '#e6a34a';
     }
   } catch (_) {
