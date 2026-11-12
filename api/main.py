@@ -287,16 +287,25 @@ class HealthResponse(BaseModel):
     api_version: str
     verification_mode: str
     encryption_configured: bool
+    database_connected: bool
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 def health():
-    configured = bool(os.getenv("BIOGUARD_ENCRYPTION_KEY"))
+    encryption_configured = bool(os.getenv("BIOGUARD_ENCRYPTION_KEY"))
+    try:
+        with db() as conn:
+            conn.execute("SELECT 1").fetchone()
+        database_connected = True
+    except sqlite3.Error:
+        database_connected = False
+    ready = encryption_configured and database_connected
     return HealthResponse(
-        status="ready" if configured else "configuration_required",
+        status="ready" if ready else "configuration_required" if not encryption_configured else "degraded",
         api_version="0.1.0",
         verification_mode=("trained_model_loaded_experimental" if MODEL_PATH.is_file() else "not_evaluated_until_calibrated"),
-        encryption_configured=configured,
+        encryption_configured=encryption_configured,
+        database_connected=database_connected,
     )
 
 
