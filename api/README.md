@@ -26,7 +26,7 @@ OpenAPI docs: http://127.0.0.1:8000/docs
 - Face and voice enrollment features use the same HOG+LBP and MFCC+ZCR+RMS extractors as the traditional-ML training pipeline; feature parity is covered by tests. Fingerprint uses the same 24-dimensional Gabor descriptor as training. If a versioned bundle was trained with complete matched fingerprint samples, the API supports fingerprint-only experimental scoring and three-modality fusion; otherwise fingerprint verification remains not evaluated.
 - Set `BIOGUARD_MODEL_PATH` to `reports/bioguard_traditional_ml.joblib` after running the training pipeline. The API loads the versioned bundle and can return experimental `match` / `no_match` results for face-only, voice-only, early-fusion scoring, and face-first hierarchical routing when the corresponding trained models are present.
 - `policy_decision` deliberately remains `pending` for every result. A model output is not an authorization decision. The bundle must be trained on consented representative data and independently reviewed before any operational use.
-- Audit records contain operation metadata, not raw samples or feature vectors.
+- Successful enrollment commits its identity, encrypted templates, and metadata-only audit event atomically. Successful verification and failed enrollment/verification attempts also write metadata-only audit events; failure records do not include request bodies, file names, raw samples, feature vectors, or bearer tokens.
 - The application does not persist raw uploads in its database or audit log. Starlette's multipart parser may temporarily spool larger uploads to API-host temporary storage until request cleanup; restrict access to that storage and manage it securely.
 
 ## API
