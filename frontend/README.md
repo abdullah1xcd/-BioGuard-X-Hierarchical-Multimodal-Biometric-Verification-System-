@@ -6,66 +6,54 @@ The dashboard uses **HTML5, CSS3, and Vanilla JavaScript**. No frontend framewor
 
 Terminal 1 — API:
 
-~~~powershell
+```powershell
 py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
+.venv\\Scripts\\Activate.ps1
 pip install -r requirements-api.txt
 $env:BIOGUARD_API_TOKEN = "replace-with-a-long-random-operator-secret"
 $env:BIOGUARD_ENCRYPTION_KEY = (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 $env:BIOGUARD_CORS_ORIGINS = "http://localhost:5500,http://127.0.0.1:5500"
 uvicorn api.main:app --reload
-~~~
+```
 
 Terminal 2 — frontend:
 
-~~~powershell
+```powershell
 cd frontend
 py -m http.server 5500
-~~~
+```
 
-Open http://localhost:5500. With the default empty API URL, the frontend starts in demo-only mode. To connect a local API, set window.BIOGUARD_API_BASE to "http://127.0.0.1:8000" in frontend/config.js before loading the page. The first API submission asks for the operator token; it stays in page memory only and is cleared after an authentication failure. The token prompt is a coursework development convenience, not a production authentication design.
-
-## Frontend checks
-
-Run the Vanilla JavaScript module and API-response contract tests from the repository root:
-
-~~~bash
-npm --prefix frontend test
-~~~
-
-The tests use Node's built-in test runner; no frontend framework or test dependency is added.
+Open http://localhost:5500. By default, local development remains demo-only. To connect the local API, set `window.BIOGUARD_API_BASE = "http://127.0.0.1:8000"` in `frontend/config.js`. The first protected API submission prompts for the operator token; it stays in page memory only and is cleared after an authentication failure. This is a coursework development convenience, not production authentication.
 
 ## Frontend modes
 
-- **Demo-only mode:** when no valid API URL is configured (blank or invalid), the enrollment and verification forms remain usable as workflow previews. Biometric file inputs are not shown. The preview does not capture, upload, process, store, or compare biometric samples; it does not create an identity, calculate a risk score, or make an access decision.
-- **Configured API mode:** set window.BIOGUARD_API_BASE in frontend/config.js to the HTTPS origin of a remote FastAPI service (HTTP is permitted only for localhost/loopback development). The forms then require files for every selected modality, validate file types and sizes, and submit only the selected files. If the service times out or is unreachable, the UI shows an error and offers an explicit offline preview; that preview does not retry or assume the earlier request failed.
-- Face, voice, and fingerprint are selectable. At least one modality is required; fingerprint is optional. Face is preselected as a starting choice.
-- Enrollment requires identity details and an explicit consent acknowledgement. Verification requires a claimed identity, a stated purpose, and an authorization acknowledgement.
-- Loading, success, validation, timeout, and API error states are shown in the module UI.
-- Successful API responses are checked against the documented response contract. An incomplete or malformed 2xx response is treated as unconfirmed, not as success; the offline preview makes no retry and asks the operator to check backend records first.
+- **Demo-only mode:** with no valid API URL, enrollment and verification are workflow previews. Biometric file inputs are hidden. The preview does not capture, upload, process, store, or compare samples; it does not create an identity, calculate risk, or make an access decision.
+- **Configured API mode:** uses the configured API origin and requires the operator bearer token. Remote origins must use HTTPS. Only selected modality files are sent. If a request times out or the API is unavailable, the UI shows an error and offers an explicit offline preview. If the previous request did not return a response, its outcome is marked unknown; the preview does not assume the API operation failed.
+- Enrollment requires profile details and an explicit consent acknowledgement. Verification requires a claimed identity, a stated purpose, and an authorization acknowledgement. These browser acknowledgements do not replace server-side authentication or legal authority.
+- File types, per-modality sizes, combined Vercel request size, and required samples are validated in the browser and again by the API.
+- The UI validates API response shapes before showing success. Verification always displays that policy is pending and no access decision is made.
+
+## Vercel deployment
+
+Import the repository using branch `frontend/vanilla-js-redesign` and keep the Vercel Root Directory at the repository root (`.`). The root `vercel.json` and `pyproject.toml` configure the static frontend and FastAPI entrypoint together. Selecting `frontend` as the Vercel Root Directory deploys only the static site and omits the API.
+
+On a `.vercel.app` hostname, `frontend/config.js` defaults the API origin to the same Vercel deployment. For a custom domain, set `window.BIOGUARD_API_BASE` to the same HTTPS origin. The UI caps the combined selected sample size to 4 MiB minus multipart overhead to stay below Vercel's function request limit.
+
+The API requires server-side Vercel environment variables: `BIOGUARD_API_TOKEN`, `BIOGUARD_ENCRYPTION_KEY`, and `BIOGUARD_DATABASE_URL` from a persistent PostgreSQL database provisioned through the Vercel Marketplace. The API deliberately refuses to use SQLite on Vercel because function filesystem writes are not persistent. Without the database URL, the health endpoint reports configuration required and enrollment/verification are rejected. Never expose these secrets in this file or browser-visible settings.
+
+No model artifact or consented biometric dataset is included. Unless a compatible trusted model bundle is separately trained and configured, verification returns NOT EVALUATED. Even with a bundle, the result is experimental and policy remains pending.
 
 ## Experimental backend boundary
 
-The repository contains an isolated FastAPI adapter in api/main.py and a traditional-ML feature pipeline in src/bioguard_ml.py. This adapter is a new experimental implementation; it does not claim to recreate missing earlier research modules.
+The repository contains an isolated FastAPI adapter in `api/main.py` and a traditional-ML feature pipeline in `src/bioguard_ml.py`. This is a new experimental baseline; it does not claim to restore earlier research services or the Streamlit application.
 
-The current API routes are:
-- GET /api/v1/health
-- POST /api/v1/identities/enroll
-- POST /api/v1/verification/multimodal
+Routes:
+- `GET /api/v1/health`
+- `POST /api/v1/identities/enroll`
+- `POST /api/v1/verification/multimodal`
 
-The enrollment endpoint extracts handcrafted features and stores encrypted feature vectors plus identity/template metadata. The verification endpoint compares selected samples only when compatible enrollment templates and a trusted trained model bundle are available. Otherwise it returns NOT EVALUATED. Experimental match/no-match output is diagnostic only; policy_decision remains pending and never grants or denies access.
-
-See api/README.md and API_INTEGRATION_CONTRACT.md for the exact multipart contract, configuration, and limitations.
-
-## Deployment
-
-- Import the repository into Vercel and select branch frontend/vanilla-js-redesign.
-- For Root Directory . use the root vercel.json; for Root Directory frontend use frontend/vercel.json.
-- The frontend is static Vanilla JS. No runtime npm dependencies are required; npm ci and the no-op build script are supported.
-- Set the public API origin in frontend/config.js before deploying. Do not place the operator token, database password, or encryption key in this file or any browser-visible environment variable.
-- Deploy FastAPI separately with HTTPS and set BIOGUARD_CORS_ORIGINS to the exact Vercel origin.
-- Keep BIOGUARD_ENCRYPTION_KEY stable; changing it makes existing encrypted templates unreadable.
+See `api/README.md` and `API_INTEGRATION_CONTRACT.md` for the exact schemas and security boundary.
 
 ## Limitations
 
-This is a coursework/research prototype, not production biometric security infrastructure. There is no face detection/alignment, liveness or spoof detection, calibrated risk score, production identity-provider integration, managed key service, retention/deletion workflow, or independent security review. Never use it as the sole basis for access control or high-stakes decisions. Never load an untrusted joblib model artifact.
+This is a coursework/research prototype, not production biometric security infrastructure. There is no face detection/alignment, liveness or spoof detection, calibrated risk score, production identity-provider integration, managed key lifecycle, retention/deletion workflow, or independent security review. Never use it as the sole basis for access control or high-stakes decisions.
