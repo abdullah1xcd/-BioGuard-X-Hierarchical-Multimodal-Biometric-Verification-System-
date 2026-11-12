@@ -303,7 +303,7 @@ def health():
     return HealthResponse(
         status="ready" if ready else "configuration_required" if not encryption_configured else "degraded",
         api_version="0.1.0",
-        verification_mode=("trained_model_loaded_experimental" if MODEL_PATH.is_file() else "not_evaluated_until_calibrated"),
+        verification_mode=("model_artifact_present_not_validated" if MODEL_PATH.is_file() else "not_evaluated_until_calibrated"),
         encryption_configured=encryption_configured,
         database_connected=database_connected,
     )
