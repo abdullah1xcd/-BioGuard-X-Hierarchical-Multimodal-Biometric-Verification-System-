@@ -26,11 +26,13 @@ Response:
   "api_version": "0.1.0",
   "verification_mode": "not_evaluated_until_calibrated",
   "encryption_configured": true,
-  "database_connected": true
+  "database_connected": true,
+  "persistent_storage_configured": true,
+  "database_backend": "postgresql"
 }
 ```
 
-`status` is `ready`, `configuration_required`, or `degraded`. `verification_mode` is `not_evaluated_until_calibrated` or `model_artifact_present_not_validated`. Artifact presence does not prove the bundle is trusted, correctly trained on real data, or accurate.
+`status` is `ready`, `configuration_required`, or `degraded`. `verification_mode` is `not_evaluated_until_calibrated` or `model_artifact_present_not_validated`. `persistent_storage_configured` reports whether a durable store is configured; `database_backend` is `sqlite_local`, `postgresql`, or `not_configured`. On Vercel, a persistent PostgreSQL URL is mandatory; the API refuses to fall back to function-local SQLite. Artifact presence does not prove the bundle is trusted, correctly trained on real data, or accurate.
 
 ## 2. Enrollment — `POST /api/v1/identities/enroll`
 
@@ -45,7 +47,7 @@ Requires bearer authentication and `multipart/form-data`.
 | `voice_sample` | file | Required if voice selected; max 20 MiB; supported audio, at least 0.5 seconds and sample rate ≥ 8 kHz |
 | `fingerprint_sample` | file | Required if fingerprint selected; max 10 MiB; decodable image, minimum 64 px on each dimension |
 
-Send sample parts for selected modalities only.
+Send sample parts for selected modalities only. Vercel additionally enforces a **4 MiB total multipart request limit** (including form fields and boundaries) to remain below its 4.5 MB function payload cap. The Vercel frontend checks the combined file size and leaves multipart overhead headroom. The local SQLite development API retains the per-modality limits above.
 
 Success: HTTP 201.
 ```json
@@ -58,7 +60,7 @@ Success: HTTP 201.
 }
 ```
 
-The identity row, encrypted feature templates, and success audit event are committed in one SQLite transaction. Enrollment stores handcrafted features; it does not create a validated biometric identity model.
+The identity row, encrypted feature templates, and success audit event are committed in one database transaction. Local development uses SQLite; Vercel uses PostgreSQL through `BIOGUARD_DATABASE_URL` (also accepts `POSTGRES_URL` or `DATABASE_URL`). Enrollment stores handcrafted features; it does not create a validated biometric identity model.
 
 ## 3. Verification — `POST /api/v1/verification/multimodal`
 
@@ -98,7 +100,7 @@ Application errors use HTTP status codes and a `detail` object with `code` and `
 | 403 | `CONSENT_REQUIRED`, `AUTHORIZATION_REQUIRED` | Required acknowledgement/purpose missing |
 | 404 | `IDENTITY_NOT_FOUND` | No active claimed identity |
 | 409 | `IDENTITY_EXISTS` | Identity reference already registered |
-| 413 | `SAMPLE_SIZE_INVALID` | File empty or exceeds per-modality size limit |
+| 413 | `SAMPLE_SIZE_INVALID`, `REQUEST_TOO_LARGE` | File empty, exceeds a per-modality size limit, or exceeds Vercel total request limit |
 | 422 | `INVALID_SAMPLE`, `INVALID_PROFILE`, `INVALID_EMAIL` | Invalid sample or profile data |
 | 503 | `AUTH_NOT_CONFIGURED`, `ENCRYPTION_NOT_CONFIGURED`, `MODEL_NOT_READY` | Backend configuration or trusted model unavailable |
 
@@ -109,7 +111,9 @@ Application errors use HTTP status codes and a `detail` object with `code` and `
 - Failed enrollment/verification attempts are audited with action, actor classification, HTTP outcome, timestamp, and request ID. Failure records do not include identity reference, request body, file names, raw samples, feature vectors, or bearer tokens.
 - Audit-write failure does not replace the original HTTP error response.
 - The application does not persist raw uploads in its database or audit log. Starlette's multipart parser may temporarily spool larger uploads to the API host's temporary storage before request cleanup; the host must restrict access to and securely manage that temporary storage.
-- Feature vectors are encrypted with Fernet. SQLite identity metadata, including optional email and consent policy version, is plaintext.
+- Feature vectors are encrypted with Fernet. Identity metadata, including optional email and consent policy version, is plaintext in both SQLite and PostgreSQL.
+- Vercel Functions use a read-only deployment filesystem with temporary scratch storage. Do not use SQLite on Vercel; without a persistent PostgreSQL URL, health reports `configuration_required` and protected write/verification endpoints return `DATABASE_NOT_CONFIGURED`.
+- Vercel rejects function request bodies above 4.5 MB. This API enforces a stricter 4 MiB total multipart cap. Larger files require a reviewed direct-to-storage upload architecture; increasing per-modality limits does not bypass the platform cap.
 
 The browser consent and authorization checkboxes are acknowledgements only. They do not independently establish legal authority, the subject's identity, or operator permissions.
 
