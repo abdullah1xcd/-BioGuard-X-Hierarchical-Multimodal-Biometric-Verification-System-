@@ -38,6 +38,21 @@
 
 A green CI run proves automated software checks pass. It does not prove biometric accuracy, liveness, or production readiness.
 
+## 2026-11-12 API/frontend integration hardening
+
+Changes committed after the last completed CI run:
+
+- API health now validates that the Fernet encryption key parses successfully, rather than checking only whether the environment variable is non-empty.
+- Enrollment writes the identity row, encrypted templates, and success audit event in one SQLite transaction.
+- Failed enrollment and verification requests produce metadata-only audit events; request bodies, file names, raw samples, feature vectors, and bearer tokens are not logged.
+- Verification feature-dimension mismatches return `not_evaluated` with a reason code instead of attempting an invalid model comparison.
+- The Vanilla JS frontend blocks remote HTTP API origins, hides biometric file inputs when the API URL is blank or invalid, and offers an explicit offline preview after a timeout, network failure, 404, or 5xx. If a previous request did not return a response, its outcome is marked unknown; the UI does not claim that enrollment failed or succeeded.
+- The API integration contract now documents the implemented multipart fields, response shapes, status codes, audit behavior, and temporary multipart-upload spooling caveat.
+
+The current suite contains 21 tests (15 API tests and 6 ML tests). Three API regression tests were added for invalid Fernet configuration, failed-attempt auditing, and feature-version mismatch. The last completed CI run (#107) passed 18 tests before these additions; the current branch follow-up changes have not yet been confirmed by a completed CI run. JavaScript source parsing was checked during this update, but no browser/device test was performed.
+
+The latest Vercel status check for the current branch commit is failing. No public API origin has been configured in `frontend/config.js`, so a deployed frontend without configuration remains in demo-only mode.
+
 ## 2026-11-12 implementation update
 
 - Added root and `frontend/` npm manifests, lockfiles, and no-op static build scripts so Vercel can install dependencies and build from either supported Root Directory.
