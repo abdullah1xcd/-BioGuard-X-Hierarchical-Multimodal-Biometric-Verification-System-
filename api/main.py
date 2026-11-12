@@ -25,7 +25,7 @@ import numpy as np
 import joblib
 import soundfile as sf
 from cryptography.fernet import Fernet, InvalidToken
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from scipy.fft import dct
@@ -126,14 +126,52 @@ def require_operator(credentials: Annotated[HTTPAuthorizationCredentials | None,
     return "api-operator"
 
 
-def audit(actor: str, action: str, identity_ref: str | None, modalities: list[str], outcome: str, request_id: str) -> str:
+def write_audit(conn: sqlite3.Connection, actor: str, action: str, identity_ref: str | None,
+                modalities: list[str], outcome: str, request_id: str) -> str:
+    """Insert metadata-only audit data using the caller's transaction."""
     event_id = str(uuid.uuid4())
-    with db() as conn:
-        conn.execute(
-            "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, actor, action, identity_ref, json.dumps(modalities), outcome, utc_now(), request_id),
-        )
+    conn.execute(
+        "INSERT INTO audit_events VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (event_id, actor, action, identity_ref, json.dumps(modalities), outcome, utc_now(), request_id),
+    )
     return event_id
+
+
+def audit(actor: str, action: str, identity_ref: str | None, modalities: list[str], outcome: str, request_id: str) -> str:
+    with db() as conn:
+        return write_audit(conn, actor, action, identity_ref, modalities, outcome, request_id)
+
+
+@app.middleware("http")
+async def audit_failed_api_requests(request: Request, call_next):
+    """Audit failed enrollment/verification attempts without reading request bodies."""
+    response = await call_next(request)
+    action = {
+        "/api/v1/identities/enroll": "identity_enrollment",
+        "/api/v1/verification/multimodal": "biometric_verification",
+    }.get(request.url.path)
+    if action and response.status_code >= 400:
+        request_id = str(uuid.uuid4())
+        auth_scheme, _, supplied_token = request.headers.get("authorization", "").partition(" ")
+        expected_token = os.getenv("BIOGUARD_API_TOKEN", "")
+        authenticated = (
+            auth_scheme.lower() == "bearer" and bool(expected_token)
+            and hmac.compare_digest(supplied_token.encode(), expected_token.encode())
+        )
+        try:
+            audit(
+                "api-operator" if authenticated else "unauthenticated",
+                action + "_failed",
+                None,
+                [],
+                f"http_{response.status_code}",
+                request_id,
+            )
+        except sqlite3.Error:
+            # A failed audit write must not hide the original API error response.
+            pass
+        response.headers["X-Request-ID"] = request_id
+    return response
 
 
 def parse_modalities(raw: str) -> list[str]:
@@ -292,7 +330,11 @@ class HealthResponse(BaseModel):
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 def health():
-    encryption_configured = bool(os.getenv("BIOGUARD_ENCRYPTION_KEY"))
+    try:
+        get_fernet()
+        encryption_configured = True
+    except RuntimeError:
+        encryption_configured = False
     try:
         with db() as conn:
             conn.execute("SELECT 1").fetchone()
@@ -370,9 +412,10 @@ async def enroll(
                     "INSERT INTO templates VALUES (?, ?, ?, ?, ?)",
                     (identity_ref, kind, encrypted, "baseline-handcrafted-v1", utc_now()),
                 )
+            # Keep the successful enrollment and its audit event atomic.
+            event_id = write_audit(conn, actor, "identity_enrollment", identity_ref, selected, "enrolled", request_id)
     except sqlite3.IntegrityError as exc:
         raise HTTPException(409, detail={"code": "IDENTITY_EXISTS", "message": "That identity reference is already registered."}) from exc
-    event_id = audit(actor, "identity_enrollment", identity_ref, selected, "enrolled", request_id)
     return {"request_id": request_id, "identity": {"identity_ref": identity_ref, "status": "enrolled"},
             "registered_modalities": selected, "audit_event_id": event_id,
             "notice": "Experimental handcrafted features stored encrypted; this is not a validated biometric identity model."}
@@ -412,21 +455,32 @@ async def verify(
         comparisons = {}
         candidates = {}
         references = {}
+        missing_template = False
+        incompatible_feature_version = False
         for kind in selected:
             raw = await read_sample(supplied[kind], kind)
             if kind not in stored:
                 comparisons[kind] = "missing_enrollment_template"
+                missing_template = True
                 del raw
                 continue
-            candidates[kind] = extract(raw, kind)
-            references[kind] = load_vector(stored[kind])
-            if candidates[kind].shape != references[kind].shape:
+            candidate = extract(raw, kind)
+            reference = load_vector(stored[kind])
+            if candidate.shape != reference.shape:
                 comparisons[kind] = "incompatible_feature_version"
+                incompatible_feature_version = True
+            else:
+                candidates[kind] = candidate
+                references[kind] = reference
             del raw
         bundle = load_model_bundle()
         experimental_result = "not_evaluated"
         experimental_scores = {}
-        reason_code = "CALIBRATION_REQUIRED"
+        reason_code = (
+            "FEATURE_VERSION_MISMATCH" if incompatible_feature_version
+            else "ENROLLMENT_TEMPLATE_MISSING" if missing_template
+            else "CALIBRATION_REQUIRED"
+        )
         if bundle is not None and all(kind in candidates and kind in references for kind in selected):
             if set(selected) == {"face", "voice", "fingerprint"} and "multimodal_fusion" in bundle:
                 combined_candidate = np.concatenate((candidates["face"], candidates["voice"], candidates["fingerprint"]))
@@ -463,7 +517,7 @@ async def verify(
             elif "fingerprint" in selected:
                 reason_code = "FINGERPRINT_MODEL_NOT_AVAILABLE"
             comparisons["model_scores"] = experimental_scores
-        elif "fingerprint" in selected:
+        elif "fingerprint" in selected and not incompatible_feature_version and not missing_template:
             reason_code = "FINGERPRINT_MODEL_NOT_AVAILABLE"
     except (ValueError, sf.LibsndfileError, cv2.error, InvalidToken) as exc:
         raise HTTPException(422, detail={"code": "INVALID_SAMPLE", "message": "One or more samples could not be decoded or processed."}) from exc
