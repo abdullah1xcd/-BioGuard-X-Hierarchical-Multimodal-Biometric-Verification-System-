@@ -6,7 +6,7 @@ const toast = document.getElementById("toast");
 const overviewView = document.getElementById("overviewView");
 const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
-const API_BASE_URL = String(window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "")).trim().replace(/\\/+$/, "");
+const API_BASE_URL = String(window.BIOGUARD_API_BASE || (["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "")).trim().replace(/\/+$/, "");
 let operatorApiToken = "";
 
 const pageCopy = {
