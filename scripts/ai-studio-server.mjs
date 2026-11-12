@@ -151,6 +151,6 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(\`BioGuard X ready on http://\${HOST}:\${PORT}\`);
-  console.log(\`API proxy target: \${API_ORIGIN.origin}\`);
+  console.log(`BioGuard X ready on http://${HOST}:${PORT}`);
+  console.log(`API proxy target: ${API_ORIGIN.origin}`);
 });
