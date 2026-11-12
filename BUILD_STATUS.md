@@ -11,7 +11,7 @@
 | Audit logging | Implemented | Metadata-only success/failure events; no raw samples, vectors, file names, or bearer tokens |
 | Local persistence | Implemented | SQLite for local development |
 | Vercel persistence | Implemented, not live-tested | PostgreSQL adapter via BIOGUARD_DATABASE_URL; requires a provisioned persistent database |
-| Vercel deployment config | Multi-service configuration committed; deployment pending verification | Root vercel.toml routes the Vanilla frontend service (frontend/) and FastAPI service (api/, main:app); API has its own runtime requirements file; latest Vercel check is pending |
+| Vercel deployment config | Multi-service deployment check passed | Root vercel.toml routes the Vanilla frontend service (frontend/) and FastAPI service (api/, main:app); API has its own runtime requirements file; Vercel check for config commit passed; live API readiness and PostgreSQL remain unverified |
 | Vercel request-size protection | Implemented | 4 MiB total API cap; frontend combined-file validation |
 | Face features | Implemented | HOG + LBP; API/training parity tested |
 | Voice features | Implemented | MFCC-style + ZCR + RMS; API/training parity tested |
