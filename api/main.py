@@ -15,6 +15,9 @@ import os
 import re
 import sqlite3
 import uuid
+
+import psycopg
+from psycopg.rows import dict_row
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -27,6 +30,7 @@ import soundfile as sf
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from scipy.fft import dct
 from scipy.signal import resample_poly
@@ -38,13 +42,17 @@ MODEL_PATH = Path(os.getenv("BIOGUARD_MODEL_PATH", str(APP_DIR.parent / "reports
 _MODEL_CACHE = None
 _MODEL_CACHE_MTIME = None
 MAX_BYTES = {"face": 10 * 1024 * 1024, "voice": 20 * 1024 * 1024, "fingerprint": 10 * 1024 * 1024}
+MAX_VERCEL_REQUEST_BYTES = 4 * 1024 * 1024
 ALLOWED = {"face", "voice", "fingerprint"}
 IDENTITY_RE = re.compile(r"^[A-Za-z0-9_-]{3,32}$")
 bearer = HTTPBearer(auto_error=False)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    init_db()
+    # Vercel functions have an ephemeral, read-only deployment filesystem.
+    # Do not silently create a per-instance SQLite database there.
+    if not (is_vercel_runtime() and not get_database_url()):
+        init_db()
     yield
 
 
@@ -75,42 +83,110 @@ def get_fernet() -> Fernet:
         raise RuntimeError("BIOGUARD_ENCRYPTION_KEY must be a valid Fernet key") from exc
 
 
+def get_database_url() -> str:
+    return (os.getenv("BIOGUARD_DATABASE_URL") or os.getenv("POSTGRES_URL")
+            or os.getenv("DATABASE_URL") or "").strip()
+
+
+def is_vercel_runtime() -> bool:
+    return os.getenv("VERCEL", "").lower() in {"1", "true"} or bool(os.getenv("VERCEL_ENV"))
+
+
+class PostgresConnection:
+    """Small adapter so the existing parameterized SQL works with psycopg."""
+    def __init__(self, connection):
+        self.connection = connection
+
+    def execute(self, statement: str, parameters=()):
+        return self.connection.execute(statement.replace("?", "%s"), parameters)
+
+    def executescript(self, script: str) -> None:
+        for statement in script.split(";"):
+            if statement.strip():
+                self.connection.execute(statement)
+
+
 @contextmanager
 def db():
+    database_url = get_database_url()
+    if database_url:
+        connection = psycopg.connect(database_url, row_factory=dict_row, connect_timeout=10)
+        try:
+            yield PostgresConnection(connection)
+            connection.commit()
+        except psycopg.IntegrityError as exc:
+            connection.rollback()
+            raise sqlite3.IntegrityError(str(exc)) from exc
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+        return
+
+    if is_vercel_runtime():
+        raise RuntimeError("Configure BIOGUARD_DATABASE_URL with a persistent PostgreSQL database on Vercel.")
+
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+    connection = sqlite3.connect(DB_PATH, timeout=15)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
     try:
-        yield conn
-        conn.commit()
+        yield connection
+        connection.commit()
     except Exception:
-        conn.rollback()
+        connection.rollback()
         raise
     finally:
-        conn.close()
+        connection.close()
 
 
 def init_db() -> None:
     with db() as conn:
-        conn.executescript("""
-        CREATE TABLE IF NOT EXISTS identities (
-          identity_ref TEXT PRIMARY KEY, full_name TEXT NOT NULL,
-          email TEXT, created_at TEXT NOT NULL, consent_version TEXT NOT NULL,
-          active INTEGER NOT NULL DEFAULT 1
-        );
-        CREATE TABLE IF NOT EXISTS templates (
-          identity_ref TEXT NOT NULL REFERENCES identities(identity_ref),
-          modality TEXT NOT NULL, encrypted_vector BLOB NOT NULL,
-          extractor_version TEXT NOT NULL, created_at TEXT NOT NULL,
-          PRIMARY KEY(identity_ref, modality)
-        );
-        CREATE TABLE IF NOT EXISTS audit_events (
-          event_id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL,
-          identity_ref TEXT, modalities TEXT NOT NULL, outcome TEXT NOT NULL,
-          created_at TEXT NOT NULL, request_id TEXT NOT NULL
-        );
-        """)
+        if get_database_url():
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS identities (
+              identity_ref TEXT PRIMARY KEY, full_name TEXT NOT NULL,
+              email TEXT, created_at TEXT NOT NULL, consent_version TEXT NOT NULL,
+              active BOOLEAN NOT NULL DEFAULT TRUE
+            );
+            CREATE TABLE IF NOT EXISTS templates (
+              identity_ref TEXT NOT NULL REFERENCES identities(identity_ref),
+              modality TEXT NOT NULL, encrypted_vector BYTEA NOT NULL,
+              extractor_version TEXT NOT NULL, created_at TEXT NOT NULL,
+              PRIMARY KEY(identity_ref, modality)
+            );
+            CREATE TABLE IF NOT EXISTS audit_events (
+              event_id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL,
+              identity_ref TEXT, modalities TEXT NOT NULL, outcome TEXT NOT NULL,
+              created_at TEXT NOT NULL, request_id TEXT NOT NULL
+            );
+            """)
+        else:
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS identities (
+              identity_ref TEXT PRIMARY KEY, full_name TEXT NOT NULL,
+              email TEXT, created_at TEXT NOT NULL, consent_version TEXT NOT NULL,
+              active INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS templates (
+              identity_ref TEXT NOT NULL REFERENCES identities(identity_ref),
+              modality TEXT NOT NULL, encrypted_vector BLOB NOT NULL,
+              extractor_version TEXT NOT NULL, created_at TEXT NOT NULL,
+              PRIMARY KEY(identity_ref, modality)
+            );
+            CREATE TABLE IF NOT EXISTS audit_events (
+              event_id TEXT PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL,
+              identity_ref TEXT, modalities TEXT NOT NULL, outcome TEXT NOT NULL,
+              created_at TEXT NOT NULL, request_id TEXT NOT NULL
+            );
+            """)
+
+
+def require_database() -> bool:
+    if is_vercel_runtime() and not get_database_url():
+        raise HTTPException(503, detail={"code": "DATABASE_NOT_CONFIGURED", "message": "Connect a persistent PostgreSQL database before using enrollment or verification on Vercel."})
+    return True
 
 
 def require_operator(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]) -> str:
@@ -169,9 +245,22 @@ async def audit_failed_api_requests(request: Request, call_next):
                 outcome,
                 request_id,
             )
-        except sqlite3.Error:
+        except (sqlite3.Error, psycopg.Error, RuntimeError):
             # Do not replace the original request error if the audit store is unavailable.
             pass
+
+    if action and is_vercel_runtime():
+        content_length = request.headers.get("content-length", "")
+        try:
+            oversized = bool(content_length) and int(content_length) > MAX_VERCEL_REQUEST_BYTES
+        except ValueError:
+            oversized = True
+        if oversized:
+            record_failure("http_413")
+            return JSONResponse(status_code=413, content={"detail": {
+                "code": "REQUEST_TOO_LARGE",
+                "message": "Vercel API requests must be no larger than 4 MiB. Reduce the combined sample size."
+            }})
 
     try:
         response = await call_next(request)
@@ -317,16 +406,26 @@ def vector_bytes(vector: np.ndarray) -> bytes:
 
 
 def load_vector(blob: bytes) -> np.ndarray:
-    return np.frombuffer(get_fernet().decrypt(blob), dtype="<f4").copy()
+    return np.frombuffer(get_fernet().decrypt(bytes(blob)), dtype="<f4").copy()
 
 
 def store_template(identity_ref: str, modality: str, vector: np.ndarray) -> None:
     encrypted = get_fernet().encrypt(vector_bytes(vector))
     with db() as conn:
-        conn.execute(
-            "INSERT OR REPLACE INTO templates VALUES (?, ?, ?, ?, ?)",
-            (identity_ref, modality, encrypted, "baseline-handcrafted-v1", utc_now()),
-        )
+        if get_database_url():
+            conn.execute(
+                """INSERT INTO templates VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT (identity_ref, modality) DO UPDATE SET
+                   encrypted_vector=EXCLUDED.encrypted_vector,
+                   extractor_version=EXCLUDED.extractor_version,
+                   created_at=EXCLUDED.created_at""",
+                (identity_ref, modality, encrypted, "baseline-handcrafted-v1", utc_now()),
+            )
+        else:
+            conn.execute(
+                "INSERT OR REPLACE INTO templates VALUES (?, ?, ?, ?, ?)",
+                (identity_ref, modality, encrypted, "baseline-handcrafted-v1", utc_now()),
+            )
 
 
 class HealthResponse(BaseModel):
@@ -335,6 +434,8 @@ class HealthResponse(BaseModel):
     verification_mode: str
     encryption_configured: bool
     database_connected: bool
+    persistent_storage_configured: bool
+    database_backend: str
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)
@@ -344,19 +445,27 @@ def health():
         encryption_configured = True
     except RuntimeError:
         encryption_configured = False
+    persistent_storage_configured = not is_vercel_runtime() or bool(get_database_url())
     try:
         with db() as conn:
             conn.execute("SELECT 1").fetchone()
         database_connected = True
-    except sqlite3.Error:
+    except (sqlite3.Error, psycopg.Error, RuntimeError):
         database_connected = False
-    ready = encryption_configured and database_connected
+    ready = encryption_configured and database_connected and persistent_storage_configured
+    status_value = (
+        "ready" if ready else
+        "configuration_required" if not encryption_configured or not persistent_storage_configured else
+        "degraded"
+    )
     return HealthResponse(
-        status="ready" if ready else "configuration_required" if not encryption_configured else "degraded",
+        status=status_value,
         api_version="0.1.0",
         verification_mode=("model_artifact_present_not_validated" if MODEL_PATH.is_file() else "not_evaluated_until_calibrated"),
         encryption_configured=encryption_configured,
         database_connected=database_connected,
+        persistent_storage_configured=persistent_storage_configured,
+        database_backend="postgresql" if get_database_url() else ("not_configured" if is_vercel_runtime() else "sqlite_local"),
     )
 
 
@@ -365,6 +474,7 @@ async def enroll(
     profile: str = Form(...), modalities: str = Form(...), consent: str = Form(...),
     face_sample: UploadFile | None = File(None), voice_sample: UploadFile | None = File(None),
     fingerprint_sample: UploadFile | None = File(None), actor: str = Depends(require_operator),
+    _storage: bool = Depends(require_database),
 ):
     request_id = str(uuid.uuid4())
     try:
@@ -412,7 +522,7 @@ async def enroll(
     try:
         with db() as conn:
             conn.execute(
-                "INSERT INTO identities VALUES (?, ?, ?, ?, ?, 1)",
+                "INSERT INTO identities (identity_ref, full_name, email, created_at, consent_version, active) VALUES (?, ?, ?, ?, ?, TRUE)",
                 (identity_ref, name, email, utc_now(), policy_version.strip()),
             )
             for kind, vector in extracted.items():
@@ -435,6 +545,7 @@ async def verify(
     claimed_identity_ref: str = Form(...), modalities: str = Form(...), authorization: str = Form(...),
     face_sample: UploadFile | None = File(None), voice_sample: UploadFile | None = File(None),
     fingerprint_sample: UploadFile | None = File(None), actor: str = Depends(require_operator),
+    _storage: bool = Depends(require_database),
 ):
     request_id = str(uuid.uuid4())
     identity_ref = claimed_identity_ref.strip()
