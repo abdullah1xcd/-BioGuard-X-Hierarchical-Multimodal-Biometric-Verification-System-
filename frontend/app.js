@@ -459,6 +459,7 @@ function bindModuleEvents(page) {
           if (response.status === 401) operatorApiToken = "";
           const apiError = new Error(getApiErrorMessage(body, response.status));
           apiError.status = response.status;
+          apiError.code = body.detail && typeof body.detail === "object" ? body.detail.code || "" : "";
           throw apiError;
         }
 
@@ -477,7 +478,7 @@ function bindModuleEvents(page) {
       setFeedback(feedback, "error", message);
       const backendUnavailable = error && (
         error.name === "AbortError" || error instanceof TypeError ||
-        error.status === 404 || error.status >= 500
+        (error.status === 404 && !error.code) || error.status >= 500
       );
       if (API_CAN_SEND && backendUnavailable) {
         const demoButton = document.createElement("button");
