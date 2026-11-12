@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "node scripts/ai-studio-server.mjs",
     "start": "node scripts/ai-studio-server.mjs",
-    "build": "node --check scripts/ai-studio-server.mjs && node -e "process.exit(0)""
+    "build": "node --check scripts/ai-studio-server.mjs"
   }
 }
