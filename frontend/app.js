@@ -226,7 +226,7 @@ function getApiErrorMessage(body, statusCode) {
   return (body && body.message) || "API request failed with HTTP " + statusCode;
 }
 
-function renderDemoResult(page, form, selected) {
+function renderDemoResult(page, form, selected, previousRequestUnconfirmed) {
   const result = document.getElementById(page === "enrollment" ? "enrollResult" : "verificationResult");
   const reference = escapeHtml(form.elements.identityRef.value.trim());
   const signals = selected.map(escapeHtml).join(" · ");
@@ -234,20 +234,38 @@ function renderDemoResult(page, form, selected) {
 
   if (page === "enrollment") {
     result.innerHTML =
-      '<div class="result-header"><div><span class="demo-chip"><i></i> LOCAL DEMO PREVIEW</span><h3>Enrollment preview prepared</h3>' +
-      '<p>Reference entered: ' + reference + '</p></div><span class="result-status status-demo">NO IDENTITY CREATED</span></div>' +
-      '<div class="result-warning"><strong>Demo only — no enrollment occurred.</strong><span>No biometric files were captured, uploaded, processed, or stored. No identity record or encrypted template was created.</span></div>' +
-      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Processing<strong>Not performed</strong></span></div>';
+      '<div class="result-header"><div><span class="demo-chip"><i></i> LOCAL DEMO PREVIEW</span><h3>' +
+      (previousRequestUnconfirmed ? "Enrollment status unconfirmed" : "Enrollment preview prepared") +
+      '</h3><p>Reference entered: ' + reference + '</p></div><span class="result-status status-demo">' +
+      (previousRequestUnconfirmed ? "REQUEST UNCONFIRMED" : "NO IDENTITY CREATED") + '</span></div>' +
+      '<div class="result-warning"><strong>' +
+      (previousRequestUnconfirmed ? "The API did not return a confirmed response." : "Demo only — no enrollment occurred.") +
+      '</strong><span>' +
+      (previousRequestUnconfirmed
+        ? "This offline preview sends no additional data. The previous request may or may not have reached the API; check the backend identity and audit records before retrying."
+        : "No biometric files were captured, uploaded, processed, or stored. No identity record or encrypted template was created.") +
+      '</span></div>' +
+      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Offline preview<strong>Not processed</strong></span></div>';
     setFeedback(document.getElementById("enrollFeedback"), "info",
-      "Demo preview complete. No biometric data was sent and no identity was created.");
+      previousRequestUnconfirmed
+        ? "Offline preview only. The earlier API request has an unknown outcome; verify backend records before retrying."
+        : "Demo preview complete. No biometric data was sent and no identity was created.");
   } else {
     result.innerHTML =
       '<div class="result-header"><div><span class="demo-chip"><i></i> LOCAL DEMO PREVIEW</span><h3>Verification preview prepared</h3>' +
       '<p>Claimed reference: ' + reference + '</p></div><span class="result-status status-not-evaluated">NOT EVALUATED</span></div>' +
-      '<div class="result-warning"><strong>No biometric comparison or risk scoring was performed.</strong><span>This is a workflow preview only. No samples were uploaded or compared, and no access decision was made.</span></div>' +
-      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Policy<strong>Not evaluated</strong></span></div>';
+      '<div class="result-warning"><strong>' +
+      (previousRequestUnconfirmed ? "The API did not return a confirmed response." : "No biometric comparison or risk scoring was performed.") +
+      '</strong><span>' +
+      (previousRequestUnconfirmed
+        ? "This offline preview performs no additional comparison. The previous request may or may not have reached the API. No access decision is made here."
+        : "This is a workflow preview only. No samples were uploaded or compared, and no access decision was made.") +
+      '</span></div>' +
+      '<div class="result-meta"><span>Selected modalities<strong>' + signals + '</strong></span><span>Policy<strong>Pending / not evaluated</strong></span></div>';
     setFeedback(document.getElementById("verifyFeedback"), "info",
-      "Demo preview complete. No biometric samples were compared and no access decision was made.");
+      previousRequestUnconfirmed
+        ? "Offline preview only. The earlier API request outcome is unknown; no access decision was made by this preview."
+        : "Demo preview complete. No biometric samples were compared and no access decision was made.");
   }
   result.hidden = false;
 }
@@ -439,7 +457,9 @@ function bindModuleEvents(page) {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
           if (response.status === 401) operatorApiToken = "";
-          throw new Error(getApiErrorMessage(body, response.status));
+          const apiError = new Error(getApiErrorMessage(body, response.status));
+          apiError.status = response.status;
+          throw apiError;
         }
 
         if (page === "enrollment") {
@@ -455,6 +475,18 @@ function bindModuleEvents(page) {
         ? "The API request timed out. Check the service and try again."
         : "API request failed: " + (error && error.message || "Unknown error") + ". No demo success was substituted.";
       setFeedback(feedback, "error", message);
+      const backendUnavailable = error && (
+        error.name === "AbortError" || error instanceof TypeError ||
+        error.status === 404 || error.status >= 500
+      );
+      if (API_CAN_SEND && backendUnavailable) {
+        const demoButton = document.createElement("button");
+        demoButton.type = "button";
+        demoButton.className = "button button-demo";
+        demoButton.textContent = "Continue with offline demo preview";
+        demoButton.addEventListener("click", () => renderDemoResult(page, form, selected, true));
+        feedback.appendChild(demoButton);
+      }
     } finally {
       submit.disabled = false;
       submit.innerHTML = originalButton;
