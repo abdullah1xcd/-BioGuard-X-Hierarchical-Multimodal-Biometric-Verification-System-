@@ -40,7 +40,7 @@ The run validates the combined multipart upload-size guard and its boundary test
 
 ## Deployment status
 
-The Vercel check for commit `d785261b6181ae4b6efaf0a46738794e505213dc` reported **failure** and supplied the command `npx vercel inspect dpl_FkGZLmaSXZuNVv2jkuH5omK5mh3w --logs`. Those deployment logs are not accessible through the connected GitHub integration, so the cause of this latest failure is not confirmed. A preceding deployment attempt explicitly reported a Vercel build-rate limit. Do not treat CI success as a successful deployment.
+The earlier Vercel deployment failed, but its detailed logs were not available through the GitHub integration, so the cause was not confirmed. The deployment configuration has since been migrated to root `vercel.toml` with separate web and API services. The Vercel check for the configuration commit is currently **pending**; this is not proof of a successful deployment. Do not treat CI success as a successful deployment.
 
 ## Remaining owner-side deployment work
 
