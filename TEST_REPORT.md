@@ -1,47 +1,34 @@
 # Test report — verified CI results
 
-## Earlier completed code-validation run — run #75
+## Latest code-validation run
 
-- Workflow: [BioGuard API tests, run #75](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43117262831)
-- Commit tested: `c4715803f91e069e7bff9f7f7e5e308e2ec73b26`
+- Workflow: [BioGuard API tests, run #164](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43185086215)
+- Commit tested: `0c85d3810b22240ec436dcab3a46c3ca9fe13444`
 - Result: **PASS**
-- Pytest: **18 passed, 0 failed**
+- Root and frontend npm installs/build scripts: PASS
+- Docker API image build: PASS
 - Python compilation: PASS
-- Vanilla JavaScript syntax (`frontend/app.js`, `frontend/modules.js`): PASS
+- Frontend Node tests: **6 passed**
+- Vanilla JavaScript syntax: PASS
 - Dependency consistency (`pip check`): PASS
-- Vercel: the latest successful frontend deployment before the documentation-only API docstring commit was [deployment H3G1wMJBZxwcj7oem45PBbRHSoLi](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system/H3G1wMJBZxwcj7oem45PBbRHSoLi). A later deployment attempt was canceled from the Vercel dashboard, not reported as a build failure.
+- Python API/ML suite: **24 tests passed** (18 API + 6 ML)
 
-The 18 tests cover API health/calibration gating, authentication rejection, encrypted template round-trip, identity reference validation, enrollment/verification safety gates, malformed email and consent validation, voice/fingerprint feature extraction, missing-sample handling, API/training feature parity for face/voice/fingerprint, configured model inference with policy pending, three-modality API fusion, HOG/LBP face extraction, MFCC/ZCR/RMS voice extraction, Gabor fingerprint extraction, pair balancing, EER/metric calculation, and synthetic end-to-end training of face/voice/fingerprint classifiers and fusion.
+The API suite covers authentication, health/calibration gates, encrypted template storage, consent and profile validation, failed-attempt audit records, feature parity, model-gated experimental inference, no-access-decision behavior, Vercel persistent-storage gating, Vercel payload-size rejection, and PostgreSQL adapter SQL/schema behavior using a fake connection. The ML suite covers face/voice/fingerprint features, pair construction, metrics/calibration, and synthetic training.
 
-## Warning
+## Historical CI
 
-One upstream warning remains: Starlette currently deprecates using `httpx` with its `TestClient`. It does not fail the tests.
+- [Run #107](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43123791346): PASS on an earlier code state; 18 Python tests.
+- [Run #148](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43182935703): PASS on the earlier API/frontend hardening state.
 
-## Not validated by CI
+## What CI does not validate
 
-- Real-data training or biometric accuracy: no consented dataset is included.
-- Real-world FAR/FRR/EER or security performance: synthetic test data is only a software smoke test.
-- Session-aware or participant-independent generalization.
-- Browser visual/interaction testing on the owner's machine.
-- Webcam/microphone hardware testing.
-- Liveness and spoof resistance.
-- Production deployment hardening, key management, rate limiting, retention/deletion policy, and independent security review.
+- No real-data training or biometric accuracy: no consented dataset is included.
+- No real-world FAR/FRR/EER or security performance claim: synthetic CI data is only a software smoke test.
+- No session-aware or participant-independent generalization.
+- No live PostgreSQL server connection; PostgreSQL adapter/schema behavior is unit-tested with a fake connection.
+- No live Vercel deployment, environment-variable setup, or Vercel routing check.
+- No browser visual/interaction test, webcam/microphone hardware test, liveness/spoof test, or production security review.
 
-The trained-model API integration, optional non-live fingerprint classifier, three-modality fusion, and UI result handling are implemented and covered by synthetic tests. This does not establish real-world biometric accuracy or authorize access-control use.
+The API can return experimental match/no-match results only when a trusted compatible model bundle is configured. Every result keeps policy_decision pending; no access grant or denial is made.
 
-## Later completed CI run — run #107
-
-- Workflow: [BioGuard API tests, run #107](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43123791346)
-- Result: **PASS**
-- The job completed both npm installs, both static build scripts, the Docker image build, Python compilation, Vanilla JavaScript syntax checks, dependency consistency, and the API/ML test step.
-- Pytest log: **18 passed, 1 warning in 4.56 seconds**.
-
-This run predates the API/frontend hardening changes recorded in `BUILD_STATUS.md`; it is not evidence that the current branch head has passed CI.
-
-## Current branch follow-up — awaiting CI confirmation
-
-- Current test inventory: **21 tests** (15 API + 6 ML).
-- Three new API regression tests cover invalid Fernet-key health reporting, metadata-only audit records for failed enrollment, and feature-version mismatch returning NOT EVALUATED.
-- JavaScript syntax parsing for the current `frontend/app.js` and `frontend/modules.js` passed during this update.
-- Python tests and compilation have not been rerun locally in this session. The latest post-change GitHub Actions result could not be confirmed.
-- No browser visual/interaction or webcam/microphone test was performed.
+Runs #165 and #166 were triggered by later documentation-only commits after the code commit tested by run #164; their status was still in progress when this report was written.
