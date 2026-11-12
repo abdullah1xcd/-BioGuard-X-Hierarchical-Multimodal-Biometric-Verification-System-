@@ -1,68 +1,49 @@
-# Build status — verified against the current branch
+# Build status — current branch
 
-| Area | Current status | Evidence / blocker |
+| Area | Current status | Evidence / remaining work |
 |---|---|---|
-| Vanilla HTML/CSS/JS frontend | Implemented | No frontend framework; syntax checked in CI |
-| Enrollment UI | Implemented | Form validation, selected modality uploads, consent acknowledgement, loading/success/error states |
-| Verification UI | Implemented | NOT EVALUATED without model; experimental match/no-match with model; policy always pending |
-| FastAPI adapter | Experimental prototype | Authenticated enrollment, encrypted templates, metadata audit, trained bundle inference |
+| Vanilla HTML/CSS/JS frontend | Implemented | Existing frontend preserved; no frontend framework introduced |
+| Enrollment UI | Connected to experimental API | Validates profile, consent, selected files, and successful response shape |
+| Verification UI | Connected to experimental API | Validates purpose/authorization and response shape; policy remains pending |
+| FastAPI routes | Implemented and covered by tests | GET /api/v1/health; POST /api/v1/identities/enroll; POST /api/v1/verification/multimodal |
+| Operator authentication | Implemented prototype | Shared bearer token; not production OIDC/RBAC |
+| Consent/authorization checks | Implemented prototype | Server-side validation of browser acknowledgements and purpose; not a legal-authority workflow |
+| Audit logging | Implemented | Metadata-only success/failure events; no raw samples, vectors, file names, or bearer tokens |
+| Local persistence | Implemented | SQLite for local development |
+| Vercel persistence | Implemented, not live-tested | PostgreSQL adapter via BIOGUARD_DATABASE_URL; requires a provisioned persistent database |
+| Vercel deployment config | Prepared | pyproject.toml entrypoint api.main:app; root vercel.json serves frontend/ and excludes non-runtime files |
+| Vercel request-size protection | Implemented | 4 MiB total API cap; frontend combined-file validation |
 | Face features | Implemented | HOG + LBP; API/training parity tested |
-| Voice features | Implemented | MFCC + ZCR + RMS; API/training parity tested |
-| Fingerprint features | Implemented, optional | Gabor descriptor; API/training parity tested |
-| Traditional classifiers | Implemented | Calibrated SVM and Random Forest for face, voice, and optional fingerprint |
-| Early fusion | Implemented | Face+voice feature fusion |
-| Three-modality fusion | Implemented, optional | Face+voice+fingerprint when every paired sample has a matching fingerprint file |
-| Hierarchical verification | Implemented | Face-first with validation-derived uncertainty band and voice fallback |
-| Train/validation/test split | Implemented | Deterministic 60/20/20 sample-level split; not session-aware or participant-independent |
-| Evaluation metrics | Implemented | Accuracy, precision, recall, F1, FAR, FRR, EER, ROC-AUC, confusion matrix |
-| API-to-model integration | Implemented experimentally | Versioned joblib bundle, shared feature extractors, SVM scores/thresholds, early fusion, hierarchy, optional 3-modality fusion |
-| Real-data training/results | NOT RUN | No consented biometric dataset supplied |
-| Original risk engine, security agent, automation, speech commands, Streamlit app | NOT PRESENT | Missing from both accessible branches |
-| Face detection/alignment and liveness | NOT IMPLEMENTED | Not part of current model path; required before real-world use |
-| Hardware/browser end-to-end validation | NOT RUN | Requires owner machine and actual webcam/microphone |
+| Voice features | Implemented | MFCC-style + ZCR + RMS; API/training parity tested |
+| Fingerprint features | Implemented, optional | Gabor texture descriptor; API/training parity tested |
+| Traditional classifiers/fusion | Implemented experimentally | SVM/Random Forest, early fusion, hierarchy, optional 3-modality fusion |
+| Real-data training and accuracy | NOT RUN | No consented biometric dataset supplied |
+| Trained model artifact | NOT INCLUDED | Verification remains NOT EVALUATED until a trusted compatible bundle is supplied |
+| Original research modules and Streamlit app | NOT PRESENT in accessible branches | This branch does not claim to restore them |
+| Face detection/alignment and liveness | NOT IMPLEMENTED | Required before any real-world biometric use |
+| Live Vercel/PostgreSQL deployment | NOT VERIFIED | Requires Vercel environment variables and a persistent database connection |
+| Browser/device end-to-end validation | NOT RUN | No browser visual check or webcam/microphone test performed |
 
-## Latest CI
+## Verified CI
 
-[GitHub Actions run #149](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43184069239) — PASS: root and frontend `npm ci`, both static build scripts, Docker image build, Python compilation, six frontend unit tests, Vanilla JS syntax, dependency consistency, and API/ML tests. This verifies the container and install/build setup, not an external production deployment.
+[GitHub Actions run #164](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43185086215) passed on code commit `0c85d3810b22240ec436dcab3a46c3ca9fe13444`.
 
-## Latest deployment
+- Root and frontend npm installs and static build scripts: PASS
+- Docker API image build: PASS
+- Python compilation: PASS
+- Frontend Node tests: PASS (6 tests)
+- Vanilla JavaScript syntax: PASS
+- Dependency consistency: PASS
+- Python API/ML suite: PASS (24 tests: 18 API + 6 ML)
 
-[Vercel project](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system) — no successful deployment has been verified for the latest branch commits. The frontend now has a runtime API URL configuration file, but it remains blank until a separate HTTPS API host is configured.
+Runs #165 and #166 were triggered by documentation-only commits after the tested code commit; they were still running when this status note was prepared. No browser/device or live Vercel deployment test is included in CI.
 
-## Required owner-side work
+## Remaining owner-side deployment work
 
-1. Collect consented, session-separated biometric data with matched filenames; include fingerprint files if using three-way fusion.
-2. Run the training command and review real-data metrics.
-3. Configure the API to load the generated model bundle and validate locally.
-4. Test actual browser/device capture if required by the course.
+1. Provision a persistent PostgreSQL database through the Vercel Marketplace and set BIOGUARD_DATABASE_URL in Vercel Preview/Production environment variables.
+2. Set BIOGUARD_API_TOKEN and BIOGUARD_ENCRYPTION_KEY as server-side secrets; never expose them in frontend/config.js.
+3. Deploy with Vercel Root Directory set to the repository root. Do not select frontend/ when the API is required.
+4. Confirm GET /api/v1/health returns status ready, database_backend postgresql, database_connected true, and persistent_storage_configured true.
+5. Supply a trusted trained model artifact only after collecting and evaluating consented, representative, properly separated data. Until then, verification correctly returns NOT EVALUATED.
 
-A green CI run proves automated software checks pass. It does not prove biometric accuracy, liveness, or production readiness.
-
-## 2026-11-12 API/frontend integration hardening
-
-Changes committed after the last completed CI run:
-
-- API health now validates that the Fernet encryption key parses successfully, rather than checking only whether the environment variable is non-empty.
-- Enrollment writes the identity row, encrypted templates, and success audit event in one SQLite transaction.
-- Failed enrollment and verification requests produce metadata-only audit events; request bodies, file names, raw samples, feature vectors, and bearer tokens are not logged.
-- Verification feature-dimension mismatches return `not_evaluated` with a reason code instead of attempting an invalid model comparison.
-- The Vanilla JS frontend blocks remote HTTP API origins, hides biometric file inputs when the API URL is blank or invalid, and offers an explicit offline preview after a timeout, network failure, route-level 404, or 5xx. If a previous request did not return a response, its outcome is marked unknown; the UI does not claim that enrollment failed or succeeded.
-- The API integration contract now documents the implemented multipart fields, response shapes, status codes, audit behavior, and temporary multipart-upload spooling caveat.
-- Enrollment and verification now show field-level validation messages for identity references, names, email, purpose, consent, and authorization.
-- `frontend/api-contract.js` validates successful enrollment and verification payloads before the UI displays success. A malformed 2xx response is marked unconfirmed; the offline preview sends no retry and directs the operator to check backend records.
-- Added six Node built-in frontend tests for demo/API module markup, consent/authorization requirements, modality uploads, and response-contract enforcement. CI runs these tests without adding npm dependencies.
-
-The current suite contains 21 Python tests (15 API tests and 6 ML tests), plus 6 frontend Node tests. GitHub Actions run #149 passed the frontend tests, JavaScript syntax checks, Python compilation, dependency checks, Docker build, and API/ML suite. No browser/device visual or capture test was performed.
-
-The latest Vercel status check for the current branch commit is failing. No public API origin has been configured in `frontend/config.js`, so a deployed frontend without configuration remains in demo-only mode.
-
-## 2026-11-12 implementation update
-
-- Added root and `frontend/` npm manifests, lockfiles, and no-op static build scripts so Vercel can install dependencies and build from either supported Root Directory.
-- CI now runs `npm ci` and the static build scripts from both locations, builds the backend Docker image, then runs Python/ML tests.
-- Added `frontend/config.js`, loaded before the application scripts. Set `window.BIOGUARD_API_BASE` there to the deployed HTTPS API origin; no backend origin has been supplied yet.
-- Added a live unauthenticated API health check to the dashboard sidebar. Health now checks database connectivity and encryption configuration; model artifact presence is not mislabeled as a validated loaded model.
-- Removed fabricated dashboard counts, chart values, sample identities, activity events, alerts, and hardcoded admin identity. The dashboard shows explicit unavailable/empty states until real analytics and identity APIs exist.
-- Added `Dockerfile`, `.dockerignore`, `.env.example`, and `DEPLOYMENT.md` for repeatable API container preparation. The Docker image build passed in CI run #107.
-- Added Git ignore rules for secrets, local databases, service-account credentials, and generated model artifacts.
-- The latest API/frontend integration changes are covered by successful CI run #149. The Vercel deployment status for the latest branch commit is still failing; no live deployment is claimed.
+A green CI run verifies software checks, not biometric accuracy, liveness, production security, or a successful Vercel deployment.
