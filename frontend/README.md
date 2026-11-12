@@ -23,7 +23,7 @@ cd frontend
 py -m http.server 5500
 ~~~
 
-Open http://localhost:5500. On localhost, the frontend defaults to http://127.0.0.1:8000. The first API submission asks for the operator token; it stays in page memory only and is cleared after an authentication failure. The token prompt is a coursework development convenience, not a production authentication design.
+Open http://localhost:5500. With the default empty API URL, the frontend starts in demo-only mode. To connect a local API, set window.BIOGUARD_API_BASE to "http://127.0.0.1:8000" in frontend/config.js before loading the page. The first API submission asks for the operator token; it stays in page memory only and is cleared after an authentication failure. The token prompt is a coursework development convenience, not a production authentication design.
 
 ## Frontend modes
 

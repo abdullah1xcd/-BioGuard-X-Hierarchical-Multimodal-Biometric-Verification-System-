@@ -8,8 +8,7 @@ const moduleView = document.getElementById("moduleView");
 const overviewMarkup = overviewView.innerHTML;
 
 const configuredApiBase = String(window.BIOGUARD_API_BASE || "").trim();
-const localApiDefault = ["localhost", "127.0.0.1"].includes(window.location.hostname) ? "http://127.0.0.1:8000" : "";
-const API_BASE_URL = (configuredApiBase || localApiDefault).replace(/\/+$/, "");
+const API_BASE_URL = configuredApiBase.replace(/\/+$/, "");
 const API_IS_CONFIGURED = Boolean(API_BASE_URL);
 const API_CONFIG_ERROR = getApiConfigError(API_BASE_URL);
 const API_TIMEOUT_MS = 45000;
@@ -179,19 +178,22 @@ function validateFiles(files, errorElement) {
     fingerprint: [".png", ".jpg", ".jpeg"]
   };
   const missing = Object.keys(files).filter((kind) => !files[kind]);
+  const empty = Object.keys(files).filter((kind) => files[kind] && files[kind].size === 0);
   const oversized = Object.keys(files).filter((kind) => files[kind] && files[kind].size > limits[kind] * 1024 * 1024);
   const wrongType = Object.keys(files).filter((kind) => {
     const file = files[kind];
     if (!file) return false;
     const mime = String(file.type || "").toLowerCase();
     const extension = "." + String(file.name || "").split(".").pop().toLowerCase();
-    const mimeValid = kind === "voice" ? mime.startsWith("audio/") : mime.startsWith("image/");
-    return !mimeValid && !extensions[kind].includes(extension);
+    const extensionValid = extensions[kind].includes(extension);
+    const mimeCompatible = !mime || (kind === "voice" ? mime.startsWith("audio/") : mime.startsWith("image/"));
+    return !extensionValid || !mimeCompatible;
   });
 
-  if (missing.length || oversized.length || wrongType.length) {
+  if (missing.length || empty.length || oversized.length || wrongType.length) {
     const parts = [];
     if (missing.length) parts.push("Add a sample for: " + missing.join(", ") + ".");
+    if (empty.length) parts.push("The selected sample is empty: " + empty.join(", ") + ".");
     if (oversized.length) parts.push("File exceeds the size limit: " + oversized.join(", ") + ".");
     if (wrongType.length) parts.push("Unsupported file type for: " + wrongType.join(", ") + ".");
     errorElement.textContent = parts.join(" ");

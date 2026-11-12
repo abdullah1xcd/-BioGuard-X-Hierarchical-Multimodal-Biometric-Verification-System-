@@ -4,7 +4,7 @@
 
 The Vanilla JavaScript enrollment and verification modules are connected to the experimental FastAPI adapter in api/main.py when BIOGUARD_API_BASE is configured. The UI does not invent routes. It uses the three routes listed below and the multipart field names implemented by the backend.
 
-When no API URL is configured, the modules enter an explicit local demo-preview mode. File inputs are not rendered, no biometric sample is transmitted, and no identity or verification result is fabricated. If an API URL is configured but the service fails, the UI shows an error; it does not silently fall back to demo success.
+When no API URL is configured on any host, the modules enter an explicit demo-preview mode. Local API mode must be opted into by setting BIOGUARD_API_BASE to the local API origin. File inputs are not rendered, no biometric sample is transmitted, and no identity or verification result is fabricated. If an API URL is configured but the service fails, the UI shows an error; it does not silently fall back to demo success.
 
 ## Implemented routes
 
