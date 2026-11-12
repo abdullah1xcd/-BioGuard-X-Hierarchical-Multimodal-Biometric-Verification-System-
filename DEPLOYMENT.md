@@ -4,12 +4,13 @@
 
 - Repository: `abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-`
 - Branch: `frontend/vanilla-js-redesign`
-- Vercel Root Directory: repository root (`.`), not `frontend`
-- Static frontend output: `frontend/`
-- FastAPI entrypoint: `api.main:app`, declared in `pyproject.toml`
-- Runtime dependencies: `requirements.txt`
+- Vercel project root: repository root (`.`)
+- Web service root: `frontend/`
+- API service root: `api/`
+- FastAPI entrypoint: `main:app` (configured in root `vercel.toml`)
+- API runtime dependencies: `api/requirements.txt`
 
-The frontend remains plain Vanilla HTML/CSS/JavaScript. The Vercel deployment is configured to serve the static frontend and the FastAPI application from the same project origin. The `frontend/vercel.json` file is for a static-only deployment; do not select the `frontend` folder as Root Directory when the API is required.
+The root `vercel.toml` defines two Vercel services and routes `/api/*` to FastAPI and all other paths to the static Vanilla frontend. Keep the Vercel project connected to the repository root and branch `frontend/vanilla-js-redesign`; do not set the project Root Directory to `frontend/` or `api/` because that bypasses the multi-service configuration. The frontend remains plain HTML/CSS/JavaScript.
 
 ## Required Vercel environment variables
 
