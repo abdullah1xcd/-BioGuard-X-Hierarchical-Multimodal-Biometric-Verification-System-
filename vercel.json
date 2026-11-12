@@ -5,7 +5,7 @@
   "outputDirectory": "frontend",
   "functions": {
     "api/main.py": {
-      "excludeFiles": "{tests/**,scripts/**,datasets/**,reports/**,.github/**,frontend/**,*.md}"
+      "excludeFiles": "{tests/**,scripts/**,datasets/**,.github/**,frontend/**,*.md}"
     }
   }
 }
