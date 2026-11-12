@@ -23,7 +23,7 @@
 
 ## Latest CI
 
-[GitHub Actions run #107](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43123791346) — PASS: root and frontend `npm ci`, both static build scripts, Docker image build, Python compilation, Vanilla JS syntax, dependency consistency, and API/ML tests. This verifies the container and install/build setup, not an external production deployment.
+[GitHub Actions run #149](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43184069239) — PASS: root and frontend `npm ci`, both static build scripts, Docker image build, Python compilation, six frontend unit tests, Vanilla JS syntax, dependency consistency, and API/ML tests. This verifies the container and install/build setup, not an external production deployment.
 
 ## Latest deployment
 
@@ -48,8 +48,11 @@ Changes committed after the last completed CI run:
 - Verification feature-dimension mismatches return `not_evaluated` with a reason code instead of attempting an invalid model comparison.
 - The Vanilla JS frontend blocks remote HTTP API origins, hides biometric file inputs when the API URL is blank or invalid, and offers an explicit offline preview after a timeout, network failure, route-level 404, or 5xx. If a previous request did not return a response, its outcome is marked unknown; the UI does not claim that enrollment failed or succeeded.
 - The API integration contract now documents the implemented multipart fields, response shapes, status codes, audit behavior, and temporary multipart-upload spooling caveat.
+- Enrollment and verification now show field-level validation messages for identity references, names, email, purpose, consent, and authorization.
+- `frontend/api-contract.js` validates successful enrollment and verification payloads before the UI displays success. A malformed 2xx response is marked unconfirmed; the offline preview sends no retry and directs the operator to check backend records.
+- Added six Node built-in frontend tests for demo/API module markup, consent/authorization requirements, modality uploads, and response-contract enforcement. CI runs these tests without adding npm dependencies.
 
-The current suite contains 21 tests (15 API tests and 6 ML tests). Three API regression tests were added for invalid Fernet configuration, failed-attempt auditing, and feature-version mismatch. The last completed CI run (#107) passed 18 tests before these additions; the current branch follow-up changes have not yet been confirmed by a completed CI run. JavaScript source parsing was checked during this update, but no browser/device test was performed.
+The current suite contains 21 Python tests (15 API tests and 6 ML tests), plus 6 frontend Node tests. GitHub Actions run #149 passed the frontend tests, JavaScript syntax checks, Python compilation, dependency checks, Docker build, and API/ML suite. No browser/device visual or capture test was performed.
 
 The latest Vercel status check for the current branch commit is failing. No public API origin has been configured in `frontend/config.js`, so a deployed frontend without configuration remains in demo-only mode.
 
@@ -62,4 +65,4 @@ The latest Vercel status check for the current branch commit is failing. No publ
 - Removed fabricated dashboard counts, chart values, sample identities, activity events, alerts, and hardcoded admin identity. The dashboard shows explicit unavailable/empty states until real analytics and identity APIs exist.
 - Added `Dockerfile`, `.dockerignore`, `.env.example`, and `DEPLOYMENT.md` for repeatable API container preparation. The Docker image build passed in CI run #107.
 - Added Git ignore rules for secrets, local databases, service-account credentials, and generated model artifacts.
-- Latest health-check/API response changes are being tested in subsequent CI runs; do not treat them as green until the latest run completes.
+- The latest API/frontend integration changes are covered by successful CI run #149. The Vercel deployment status for the latest branch commit is still failing; no live deployment is claimed.
