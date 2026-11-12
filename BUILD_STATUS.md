@@ -23,11 +23,11 @@
 
 ## Latest CI
 
-[GitHub Actions run #75](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43117262831) — PASS: 18 passed, 0 failed; Python compilation, Vanilla JS syntax, and dependency checks passed. One non-blocking Starlette/httpx deprecation warning remains.
+[GitHub Actions run #107](https://github.com/abdullah1xcd/-BioGuard-X-Hierarchical-Multimodal-Biometric-Verification-System-/actions/runs/43123791346) — PASS: root and frontend `npm ci`, both static build scripts, Docker image build, Python compilation, Vanilla JS syntax, dependency consistency, and API/ML tests. This verifies the container and install/build setup, not an external production deployment.
 
 ## Latest deployment
 
-[Vercel deployment](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system/H3G1wMJBZxwcj7oem45PBbRHSoLi) — PASS for the frontend code revision. A subsequent deployment attempt was canceled from the Vercel dashboard.
+[Vercel project](https://vercel.com/haroon15/bio-guard-x-hierarchical-multimodal-biometric-verification-system) — no successful deployment has been verified for the latest branch commits. The frontend now has a runtime API URL configuration file, but it remains blank until a separate HTTPS API host is configured.
 
 ## Required owner-side work
 
@@ -37,3 +37,14 @@
 4. Test actual browser/device capture if required by the course.
 
 A green CI run proves automated software checks pass. It does not prove biometric accuracy, liveness, or production readiness.
+
+## 2026-11-12 implementation update
+
+- Added root and `frontend/` npm manifests, lockfiles, and no-op static build scripts so Vercel can install dependencies and build from either supported Root Directory.
+- CI now runs `npm ci` and the static build scripts from both locations, builds the backend Docker image, then runs Python/ML tests.
+- Added `frontend/config.js`, loaded before the application scripts. Set `window.BIOGUARD_API_BASE` there to the deployed HTTPS API origin; no backend origin has been supplied yet.
+- Added a live unauthenticated API health check to the dashboard sidebar. Health now checks database connectivity and encryption configuration; model artifact presence is not mislabeled as a validated loaded model.
+- Removed fabricated dashboard counts, chart values, sample identities, activity events, alerts, and hardcoded admin identity. The dashboard shows explicit unavailable/empty states until real analytics and identity APIs exist.
+- Added `Dockerfile`, `.dockerignore`, `.env.example`, and `DEPLOYMENT.md` for repeatable API container preparation. The Docker image build passed in CI run #107.
+- Added Git ignore rules for secrets, local databases, service-account credentials, and generated model artifacts.
+- Latest health-check/API response changes are being tested in subsequent CI runs; do not treat them as green until the latest run completes.
